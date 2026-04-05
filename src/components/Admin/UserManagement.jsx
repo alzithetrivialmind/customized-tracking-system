@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { Plus, Trash2, UserCog, Mail, Shield, UserPlus, X, Loader2, Search } from 'lucide-react';
 
@@ -13,7 +13,7 @@ const UserManagement = () => {
   const [newUser, setNewUser] = useState({ 
     email: '', 
     fullName: '', 
-    password: 'user123', // Default password for new users
+    password: 'user123',
     role: 'user' 
   });
 
@@ -23,33 +23,22 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (profiles) setUsers(profiles);
-    if (error) console.error('Error fetching users:', error);
-    setLoading(false);
+    try {
+      const profiles = await api.get('/users');
+      setUsers(profiles);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddUser = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
-      // NOTE: In standard Supabase client, you cannot create Auth users.
-      // This will call a Serverless Function we'll create later.
-      const response = await fetch('/api/admin/create-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
-      });
-      
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed to create user');
-      
-      alert(`User ${newUser.fullName} created successfully. They can login with password: ${newUser.password}`);
+      await api.post('/admin/create-user', newUser);
+      alert(`User ${newUser.fullName} created successfully.`);
       setShowAdd(false);
       setNewUser({ email: '', fullName: '', password: 'user123', role: 'user' });
       fetchUsers();
@@ -64,13 +53,12 @@ const UserManagement = () => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     if (!confirm(`Change user to ${newRole}?`)) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', userId);
-
-    if (error) alert(error.message);
-    else fetchUsers();
+    try {
+      await api.post(`/users/${userId}/role`, { role: newRole });
+      fetchUsers();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   if (!isAdmin) return <div style={{ padding: '2rem', textAlign: 'center' }}>Access Denied</div>;

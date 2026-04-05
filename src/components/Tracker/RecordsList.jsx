@@ -197,7 +197,7 @@ const RecordsList = ({ status }) => {
             </div>
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: '20px' }}>
                {selectedRecord.logs.map(log => (
-                 <div key={log.id} style={{ padding: '1.5rem', borderLeft: '5px solid var(--brand-green)', marginBottom: '1.5rem', background: '#f9fbf9', borderRadius: '0 16px 16px 0', border: '1px solid rgba(0,71,55,0.05)', borderLeft: '6px solid var(--brand-green)' }}>
+                 <div key={log.id} style={{ padding: '1.5rem', marginBottom: '1.5rem', background: '#f9fbf9', borderRadius: '0 16px 16px 0', border: '1px solid rgba(0,71,55,0.05)', borderLeft: '6px solid var(--brand-green)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                       <span style={{ fontWeight: '800', color: 'var(--brand-dark)', fontSize: '0.9rem' }}>{log.action}</span>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(log.timestamp).toLocaleString()}</span>

@@ -125,7 +125,39 @@ app.post('/api/templates/:id', authenticateToken, isAdmin, upload.single('templa
   res.json({ success: true, message: `${req.params.id} template uploaded.` });
 });
 
-// 6. EXCEL GENERATION (Monolithic Version)
+// 6. USER MANAGEMENT ROUTES
+app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
+  db.all(`SELECT id, email, full_name, role, created_at FROM profiles ORDER BY created_at DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/admin/create-user', authenticateToken, isAdmin, async (req, res) => {
+  const { email, fullName, password, role } = req.body;
+  const id = uuidv4();
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  db.run(`INSERT INTO profiles (id, email, password, full_name, role, force_password_change) 
+          VALUES (?, ?, ?, ?, ?, ?)`, 
+          [id, email, hashedPassword, fullName, role, 1], (err) => {
+    if (err) {
+      if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Email already exists.' });
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id, success: true });
+  });
+});
+
+app.post('/api/users/:id/role', authenticateToken, isAdmin, (req, res) => {
+  const { role } = req.body;
+  db.run(`UPDATE profiles SET role = ? WHERE id = ?`, [role, req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// 7. EXCEL GENERATION (Monolithic Version)
 app.post('/api/generate-excel', authenticateToken, async (req, res) => {
   const { so_number, customer_name, etd, equipment_type, dangerous_type } = req.body;
   const templateId = `${equipment_type}_${dangerous_type}`.toUpperCase().replace('-', '_').replace(' ', '_');
