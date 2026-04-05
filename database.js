@@ -98,4 +98,26 @@ const initDb = async () => {
   });
 };
 
-module.exports = { db, initDb };
+// Safe migration: adds new columns to existing tables without dropping data.
+// SQLite doesn't support IF NOT EXISTS for columns, so we catch the "duplicate column" error.
+const migrateDb = () => {
+  const addColumn = (table, column, definition) => {
+    db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error(`Migration error (${table}.${column}):`, err.message);
+      }
+    });
+  };
+
+  // so_records: new columns per spec
+  addColumn('so_records', 'is_active', 'INTEGER DEFAULT 1');
+  addColumn('so_records', 'generated_excel_path', 'TEXT DEFAULT NULL');
+
+  // shipment_logs: old/new data snapshots + updated_by
+  addColumn('shipment_logs', 'old_data', 'TEXT DEFAULT NULL');
+  addColumn('shipment_logs', 'new_data', 'TEXT DEFAULT NULL');
+  addColumn('shipment_logs', 'updated_by', 'TEXT DEFAULT NULL');
+  addColumn('shipment_logs', 'attachment_path', 'TEXT DEFAULT NULL');
+};
+
+module.exports = { db, initDb, migrateDb };

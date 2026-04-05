@@ -20,6 +20,8 @@ const RecordsList = ({ status }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedLogs, setSelectedLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [editData, setEditData] = useState({});
   const [editMeta, setEditMeta] = useState({ comment: '', attachment: null });
@@ -40,6 +42,20 @@ const RecordsList = ({ status }) => {
       console.error('Fetch failed:', err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openLogs = async (record) => {
+    setSelectedRecord(record);
+    setSelectedLogs([]);
+    setLogsLoading(true);
+    try {
+      const logs = await api.get(`/records/${record.id}/logs`);
+      setSelectedLogs(logs);
+    } catch (err) {
+      console.error('Failed to fetch logs:', err.message);
+    } finally {
+      setLogsLoading(false);
     }
   };
 
@@ -94,7 +110,15 @@ const RecordsList = ({ status }) => {
     }
     setLoading(true);
     try {
-      await api.put(`/records/${editingRecord.id}`, { ...editData, comment: editMeta.comment });
+      await api.put(`/records/${editingRecord.id}`, {
+        so_number: editData.soNumber,
+        customer_name: editData.customerName,
+        etd: editData.etd,
+        equipment_type: editData.equipmentType,
+        dangerous_type: editData.dangerousType,
+        manual_priority: editData.manualPriority || null,
+        comment: editMeta.comment,
+      });
       setEditingRecord(null);
       loadData();
     } catch (err) {
@@ -200,7 +224,7 @@ const RecordsList = ({ status }) => {
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button className="btn-secondary" style={{ flex: 1, padding: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => setSelectedRecord(record)}>
+                <button className="btn-secondary" style={{ flex: 1, padding: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => openLogs(record)}>
                   <History size={18} /> Logs
                 </button>
                 {status === 'ongoing' && (
@@ -236,20 +260,41 @@ const RecordsList = ({ status }) => {
               <h2>Activity Feed — {getField(selectedRecord, 'soNumber', 'so_number')}</h2>
               <button className="icon-btn" onClick={() => setSelectedRecord(null)}><X size={24} /></button>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '20px' }}>
-              {(selectedRecord.logs && selectedRecord.logs.length > 0) ? selectedRecord.logs.map(log => (
-                <div key={log.id} style={{ padding: '1.5rem', marginBottom: '1.5rem', background: '#f9fbf9', borderRadius: '0 16px 16px 0', borderLeft: '6px solid var(--brand-green)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '10px' }}>
+              {logsLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                  <Loader2 size={36} className="spin" color="var(--brand-green)" />
+                </div>
+              ) : selectedLogs.length > 0 ? selectedLogs.map(log => (
+                <div key={log.id} style={{ padding: '1.5rem', marginBottom: '1.5rem', background: '#f9fbf9', borderRadius: '0 16px 16px 0', borderLeft: `6px solid ${log.action === 'Auto-Update' ? 'var(--warning)' : log.action === 'Completed' ? 'var(--success)' : 'var(--brand-green)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{ fontWeight: '800', color: 'var(--brand-dark)', fontSize: '0.9rem' }}>{log.action}</span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(log.timestamp).toLocaleString()}</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(log.timestamp).toLocaleString('id-ID')} — <b>{log.modifier_name || log.updated_by || 'System'}</b></span>
                   </div>
-                  <p style={{ color: 'var(--text-primary)', marginBottom: '12px' }}>{log.details}</p>
-                  <div style={{ background: 'white', padding: '1rem', borderRadius: '10px' }}>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Reason: "{log.comment}"</p>
-                  </div>
-                  {log.attachment && (
-                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
-                      <Paperclip size={16} /> {log.attachment.name}
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '10px', fontStyle: 'italic' }}>Reason: "{log.comment}"</p>
+                  {log.old_data && log.new_data && (() => {
+                    try {
+                      const old = JSON.parse(log.old_data);
+                      const nw  = JSON.parse(log.new_data);
+                      const changes = Object.keys(nw).filter(k => String(nw[k]) !== String(old[k]));
+                      if (changes.length === 0) return null;
+                      return (
+                        <div style={{ background: 'white', borderRadius: '10px', padding: '0.8rem 1rem', fontSize: '0.82rem' }}>
+                          {changes.map(k => (
+                            <div key={k} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontWeight: '700', color: 'var(--brand-dark)', minWidth: '110px', textTransform: 'capitalize' }}>{k.replace(/_/g,' ')}:</span>
+                              <span style={{ color: 'var(--error)', textDecoration: 'line-through' }}>{old[k] || '—'}</span>
+                              <span style={{ color: 'var(--text-secondary)' }}>→</span>
+                              <span style={{ color: 'var(--success)', fontWeight: '700' }}>{nw[k] || '—'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    } catch { return null; }
+                  })()}
+                  {log.attachment_path && (
+                    <div style={{ marginTop: '10px', fontSize: '0.82rem', display: 'flex', gap: '6px', alignItems: 'center', color: 'var(--brand-dark)' }}>
+                      <Paperclip size={14} /> <span>{log.attachment_path.split('/').pop()}</span>
                     </div>
                   )}
                 </div>
@@ -257,7 +302,7 @@ const RecordsList = ({ status }) => {
                 <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem' }}>No activity logs yet.</p>
               )}
             </div>
-            <button className="btn-secondary" style={{ marginTop: '2rem', width: '100%', padding: '1rem' }} onClick={() => setSelectedRecord(null)}>Close</button>
+            <button className="btn-secondary" style={{ marginTop: '1.5rem', width: '100%', padding: '1rem' }} onClick={() => setSelectedRecord(null)}>Close</button>
           </div>
         </div>
       )}

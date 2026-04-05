@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Users, Search, Building2, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Users, Search, Building2, Loader2 } from 'lucide-react';
 
 const CustomerDatabase = () => {
   const { user } = useAuth();
-  const [customers, setCustomers] = useState([]);
+  const [customers, setCustomers] = useState([]); // [{id, name, created_at}]
   const [loading, setLoading] = useState(true);
-  const [newCust, setNewCust] = useState('');
+  const [newName, setNewName] = useState('');
+  const [adding, setAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -18,7 +19,7 @@ const CustomerDatabase = () => {
     setLoading(true);
     try {
       const data = await api.get('/customers');
-      setCustomers(data);
+      setCustomers(data); // data is [{id, name, ...}]
     } catch (err) {
       console.error(err);
     } finally {
@@ -28,18 +29,21 @@ const CustomerDatabase = () => {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (!newCust) return;
+    if (!newName.trim()) return;
+    setAdding(true);
     try {
-      await api.post('/customers', { name: newCust });
-      setNewCust('');
+      await api.post('/customers', { name: newName.trim() });
+      setNewName('');
       loadCustomers();
     } catch (err) {
       alert(err.message);
+    } finally {
+      setAdding(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Remove this customer?')) return;
+  const handleDelete = async (id, name) => {
+    if (!confirm(`Remove "${name}" from the customer list?`)) return;
     try {
       await api.delete(`/customers/${id}`);
       loadCustomers();
@@ -48,9 +52,9 @@ const CustomerDatabase = () => {
     }
   };
 
-  const getRecordCount = (name) => {
-    return 0; // Placeholder as records state is missing
-  };
+  const filtered = customers.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="fade-in">
@@ -59,8 +63,8 @@ const CustomerDatabase = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Manage your list of verified trading partners and customers.</p>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 2fr', gap: '2.5rem' }}>
-        {/* Left: Add New Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) 2fr', gap: '2.5rem' }}>
+        {/* Left: Add New */}
         <div className="glass-card" style={{ height: 'fit-content', padding: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
             <Building2 size={24} color="var(--brand-green)" />
@@ -69,69 +73,80 @@ const CustomerDatabase = () => {
           <form onSubmit={handleAdd}>
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={labelStyle}>Company Name</label>
-              <input 
-                type="text" 
-                value={newCust}
-                onChange={e => setNewCust(e.target.value)}
+              <input
+                type="text"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
                 placeholder="e.g. EcoGreen Chemicals Ltd."
                 style={inputStyle}
+                required
               />
             </div>
-            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-              <Plus size={20} /> Add to Verified List
+            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={adding}>
+              {adding ? <Loader2 size={18} className="spin" /> : <><Plus size={20} /> Add to Verified List</>}
             </button>
           </form>
-          
-          <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-             <p>Total Registered: <b>{customers.length}</b></p>
+          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+            <p>Total Registered: <b>{customers.length}</b></p>
           </div>
         </div>
 
-        {/* Right: List Section */}
+        {/* Right: List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#e0e6e454', padding: '1rem' }}>
-            <Search size={18} color="var(--text-secondary)" style={{ marginLeft: '8px' }} />
-            <input 
-              type="text" 
-              placeholder="Search customers..." 
+            <Search size={18} color="var(--text-secondary)" />
+            <input
+              type="text"
+              placeholder="Search customers..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ flex: 1, padding: '0.6rem', border: 'none', background: 'transparent', outline: 'none', color: 'var(--text-primary)', fontSize: '1rem' }}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{ flex: 1, padding: '0.5rem', border: 'none', background: 'transparent', outline: 'none', color: 'var(--text-primary)', fontSize: '1rem' }}
             />
           </div>
 
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            {customers
-              .filter(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
-              .map(name => (
-              <div key={name} className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.2rem 1.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <div style={{ width: '45px', height: '45px', background: 'rgba(0,71,55,0.04)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Users size={22} color="var(--brand-dark)" />
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
+              <Loader2 size={40} className="spin" color="var(--brand-green)" />
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {filtered.map(c => (
+                <div key={c.id} className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.2rem 1.8rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ width: '45px', height: '45px', background: 'rgba(0,71,55,0.06)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Users size={22} color="var(--brand-dark)" />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', fontWeight: '700' }}>{c.name}</h4>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
+                        Added {new Date(c.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', fontWeight: '700' }}>{name}</h4>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>{getRecordCount(name)} Total SOs Linked</p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button className="icon-btn" style={{ padding: '10px', color: 'var(--error)' }} onClick={() => handleDelete(name)} title="Remove Customer">
+                  <button
+                    className="icon-btn"
+                    style={{ padding: '10px', color: 'var(--error)' }}
+                    onClick={() => handleDelete(c.id, c.name)}
+                    title="Remove Customer"
+                  >
                     <Trash2 size={20} />
                   </button>
-                  <div style={{ padding: '10px', color: 'rgba(0,0,71,0.1)' }}>
-                     <ChevronRight size={22} />
-                  </div>
                 </div>
-              </div>
-            ))}
-            {customers.length === 0 && (
-              <div className="glass-card" style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
-                No customer data found. Use the form on the left to add one.
-              </div>
-            )}
-          </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="glass-card" style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
+                  {searchTerm ? `No customers match "${searchTerm}".` : 'No customers yet. Add one using the form.'}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      <style>{`
+        .spin { animation: rotate 1s linear infinite; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 };

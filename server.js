@@ -8,7 +8,13 @@ const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
 const multer = require('multer');
 const fs = require('fs');
-const { db, initDb } = require('./database');
+const cron = require('node-cron');
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const { db, initDb, migrateDb } = require('./database');
 const { authenticateToken, isAdmin, JWT_SECRET } = require('./auth');
 
 const app = express();
@@ -70,35 +76,62 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 // 3. TRACKING ROUTES (SO Records)
 app.get('/api/records', authenticateToken, (req, res) => {
   const { status } = req.query;
-  let sql = `SELECT * FROM so_records WHERE status = ?`;
-  let params = [status || 'ongoing'];
-  
+  let sql = `SELECT r.* FROM so_records r WHERE r.is_active = 1`;
+  let params = [];
+
+  if (status && status !== 'all') {
+    sql += ` AND r.status = ?`;
+    params.push(status);
+  }
   if (req.user.role !== 'admin') {
-    sql += ` AND user_id = ?`;
+    sql += ` AND r.user_id = ?`;
     params.push(req.user.id);
   }
-  
+  sql += ` ORDER BY r.created_at DESC`;
+
   db.all(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
+// Fetch logs for a specific SO
+app.get('/api/records/:id/logs', authenticateToken, (req, res) => {
+  db.all(
+    `SELECT l.*, p.full_name as modifier_name 
+     FROM shipment_logs l 
+     LEFT JOIN profiles p ON l.modifier_id = p.id 
+     WHERE l.so_id = ? 
+     ORDER BY l.timestamp ASC`,
+    [req.params.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
 app.post('/api/records', authenticateToken, (req, res) => {
   const { so_number, customer_name, equipment_type, dangerous_type, etd } = req.body;
+  if (!so_number || !customer_name || !etd) return res.status(400).json({ error: 'so_number, customer_name, and etd are required.' });
   const id = uuidv4();
-  db.run(`INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd) 
-          VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-          [id, req.user.id, so_number, customer_name, equipment_type, dangerous_type, etd], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    // Add Initial Log
-    const logId = uuidv4();
-    db.run(`INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment) VALUES (?, ?, ?, ?, ?)`,
-           [logId, id, req.user.id, 'Created', 'Initial SO entry added.'], () => {
-      res.json({ id, success: true });
-    });
-  });
+  db.run(
+    `INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd, is_active) VALUES (?,?,?,?,?,?,?,1)`,
+    [id, req.user.id, so_number, customer_name, equipment_type || '', dangerous_type || '', etd],
+    (err) => {
+      if (err) {
+        if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'SO Number already exists.' });
+        return res.status(500).json({ error: err.message });
+      }
+      const logId = uuidv4();
+      db.run(
+        `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by, new_data) VALUES (?,?,?,?,?,?,?)`,
+        [logId, id, req.user.id, 'Created', 'Initial SO entry added.', req.user.fullName || req.user.email,
+         JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd })],
+        () => res.json({ id, success: true })
+      );
+    }
+  );
 });
 
 // 4. CUSTOMER ROUTES
@@ -131,23 +164,43 @@ app.delete('/api/customers/:id', authenticateToken, (req, res) => {
   });
 });
 
-// UPDATE SO RECORD
+// UPDATE SO RECORD — saves old_data + new_data snapshots
 app.put('/api/records/:id', authenticateToken, (req, res) => {
-  const { soNumber, customerName, etd, equipmentType, dangerousType, manualPriority, comment } = req.body;
-  db.run(
-    `UPDATE so_records SET so_number=?, customer_name=?, etd=?, equipment_type=?, dangerous_type=?, manual_priority=? WHERE id=?`,
-    [soNumber, customerName, etd, equipmentType, dangerousType, manualPriority || null, req.params.id],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      // Add audit log
-      const logId = uuidv4();
-      db.run(
-        `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment) VALUES (?, ?, ?, ?, ?)`,
-        [logId, req.params.id, req.user.id, 'Record Updated', comment || 'Updated.'],
-        () => res.json({ success: true })
-      );
-    }
-  );
+  const { so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority, comment } = req.body;
+  if (!comment) return res.status(400).json({ error: 'Reason for change (comment) is mandatory.' });
+
+  // Fetch old record first for audit snapshot
+  db.get(`SELECT * FROM so_records WHERE id=?`, [req.params.id], (err, old) => {
+    if (err || !old) return res.status(404).json({ error: 'Record not found.' });
+
+    db.run(
+      `UPDATE so_records SET so_number=?, customer_name=?, etd=?, equipment_type=?, dangerous_type=?, manual_priority=? WHERE id=?`,
+      [so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority || null, req.params.id],
+      (err2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        const logId = uuidv4();
+        db.run(
+          `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?,?)`,
+          [logId, req.params.id, req.user.id, 'Manual-Update', comment,
+           JSON.stringify({ so_number: old.so_number, customer_name: old.customer_name, etd: old.etd, equipment_type: old.equipment_type, dangerous_type: old.dangerous_type, manual_priority: old.manual_priority }),
+           JSON.stringify({ so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority }),
+           req.user.email],
+          () => res.json({ success: true })
+        );
+      }
+    );
+  });
+});
+
+// SOFT DELETE SO RECORD (never physically deleted per spec)
+app.delete('/api/records/:id', authenticateToken, (req, res) => {
+  db.run(`UPDATE so_records SET is_active=0 WHERE id=?`, [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const logId = uuidv4();
+    db.run(`INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by) VALUES (?,?,?,?,?,?)`,
+      [logId, req.params.id, req.user.id, 'Deleted', 'Record soft-deleted (hidden).', req.user.email]);
+    res.json({ success: true });
+  });
 });
 
 // UPDATE SO STATUS (mark done / reopen)
@@ -294,17 +347,55 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
 
 
 app.get('/api/download/:filename', (req, res) => {
-  const filePath = path.join(__dirname, 'exports', req.params.filename);
+  const filePath = path.join(EXPORTS_DIR, req.params.filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found.' });
   res.download(filePath);
 });
 
-// 6. CATCH-ALL FRONTEND ROUTING
+// ─── CATCH-ALL FRONTEND ROUTING ───────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(DIST_PATH, 'index.html'));
 });
 
-// INIT & START
+// ─── AUTO-PRIORITY CRON JOB (midnight WIB = 17:00 UTC) ───────────────────────
+const runPriorityUpdate = () => {
+  const todayWIB = dayjs().tz('Asia/Jakarta');
+  db.all(`SELECT id, so_number, etd, manual_priority FROM so_records WHERE status='ongoing' AND is_active=1`, [], (err, rows) => {
+    if (err) return console.error('Cron error:', err.message);
+    rows.forEach(row => {
+      if (row.manual_priority) return; // skip manual overrides
+      const etd = dayjs.tz(row.etd, 'Asia/Jakarta');
+      const diff = etd.diff(todayWIB, 'day');
+      const newPriority = diff <= 10 ? 'HIGH' : diff <= 14 ? 'MEDIUM' : 'NORMAL';
+
+      db.get(`SELECT manual_priority FROM so_records WHERE id=?`, [row.id], (e, current) => {
+        // Store previous computed priority in a temp field by recalculating
+        const oldEtd = dayjs.tz(row.etd, 'Asia/Jakarta');
+        const oldDiff = oldEtd.diff(todayWIB.subtract(1, 'day'), 'day');
+        const oldPriority = oldDiff <= 10 ? 'HIGH' : oldDiff <= 14 ? 'MEDIUM' : 'NORMAL';
+
+        if (newPriority !== oldPriority) {
+          const logId = uuidv4();
+          db.run(`INSERT INTO shipment_logs (id, so_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?)`,
+            [logId, row.id, 'Auto-Update',
+             `Priority auto-updated by system scheduler`,
+             JSON.stringify({ priority: oldPriority }),
+             JSON.stringify({ priority: newPriority }),
+             'System (Cron)'
+            ]);
+          console.log(`[Cron] SO ${row.so_number}: ${oldPriority} → ${newPriority}`);
+        }
+      });
+    });
+  });
+};
+
+// Run at midnight WIB (17:00 UTC)
+cron.schedule('0 17 * * *', runPriorityUpdate);
+
+// ─── INIT & START ─────────────────────────────────────────────────────────────
 initDb().then(() => {
+  migrateDb(); // safe ALTER TABLE — never drops data
   app.listen(PORT, () => {
     console.log(`EcoGreen Monolith running on port ${PORT}`);
   });
