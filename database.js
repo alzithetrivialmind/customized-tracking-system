@@ -44,6 +44,11 @@ const initDb = async () => {
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
+        bl_type TEXT DEFAULT NULL,
+        combine_bl TEXT DEFAULT NULL,
+        shipping_mark_on_bl TEXT DEFAULT NULL,
+        tank_requirement TEXT DEFAULT NULL,
+        other_requirement TEXT DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES profiles (id)
       )`);
@@ -156,6 +161,13 @@ const migrateDb = () => {
   addColumn('shipment_logs', 'new_data', 'TEXT DEFAULT NULL');
   addColumn('shipment_logs', 'updated_by', 'TEXT DEFAULT NULL');
   addColumn('shipment_logs', 'attachment_path', 'TEXT DEFAULT NULL');
+
+  // customers: extended fields
+  addColumn('customers', 'bl_type', 'TEXT DEFAULT NULL');
+  addColumn('customers', 'combine_bl', 'TEXT DEFAULT NULL');
+  addColumn('customers', 'shipping_mark_on_bl', 'TEXT DEFAULT NULL');
+  addColumn('customers', 'tank_requirement', 'TEXT DEFAULT NULL');
+  addColumn('customers', 'other_requirement', 'TEXT DEFAULT NULL');
 };
 
 module.exports = { db, initDb, migrateDb };

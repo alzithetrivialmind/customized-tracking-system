@@ -29,7 +29,6 @@ const RecordForm = ({ onClose }) => {
     loadMetadata();
   }, []);
 
-  // Auto-match template whenever equipment or cargo changes
   useEffect(() => {
     if (!formData.equipment_type || !formData.dangerous_type) {
       setSelectedTemplateConfig(null);
@@ -42,6 +41,20 @@ const RecordForm = ({ onClose }) => {
     setSelectedTemplateConfig(match || null);
     setTemplateOverride(match ? match.id : '');
   }, [formData.equipment_type, formData.dangerous_type, templateConfigs]);
+
+  // Auto-fill Notes from customer's other_requirement when customer changes
+  useEffect(() => {
+    if (!formData.customer_name) return;
+    const customer = customers.find(c => c.name === formData.customer_name);
+    if (customer && customer.other_requirement) {
+      setFormData(f => ({
+        ...f,
+        notes: f.notes && f.notes !== (customers.find(c => c.name !== formData.customer_name)?.other_requirement || '')
+          ? f.notes  // user already typed something different, keep it
+          : customer.other_requirement
+      }));
+    }
+  }, [formData.customer_name, customers]);
 
   const loadMetadata = async () => {
     setMetaLoading(true);

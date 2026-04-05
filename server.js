@@ -136,25 +136,45 @@ app.post('/api/records', authenticateToken, (req, res) => {
 
 // 4. CUSTOMER ROUTES
 app.get('/api/customers', authenticateToken, (req, res) => {
-  let sql = `SELECT * FROM customers`;
-  let params = [];
-  if (req.user.role !== 'admin') {
-    sql += ` WHERE user_id = ?`;
-    params.push(req.user.id);
-  }
-  db.all(sql, params, (err, rows) => {
+  // All users see all customers (shared database)
+  db.all(`SELECT * FROM customers ORDER BY name ASC`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.post('/api/customers', authenticateToken, (req, res) => {
-  const { name } = req.body;
-  const id = uuidv4();
-  db.run(`INSERT INTO customers (id, user_id, name) VALUES (?, ?, ?)`, [id, req.user.id, name], (err) => {
+// Unique tank requirement values for dropdown
+app.get('/api/tank-requirements', authenticateToken, (req, res) => {
+  db.all(`SELECT DISTINCT tank_requirement FROM customers WHERE tank_requirement IS NOT NULL AND tank_requirement != '' ORDER BY tank_requirement ASC`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id, success: true });
+    res.json(rows.map(r => r.tank_requirement));
   });
+});
+
+app.post('/api/customers', authenticateToken, (req, res) => {
+  const { name, bl_type, combine_bl, shipping_mark_on_bl, tank_requirement, other_requirement } = req.body;
+  if (!name) return res.status(400).json({ error: 'Customer name is required.' });
+  const id = uuidv4();
+  db.run(
+    `INSERT INTO customers (id, user_id, name, bl_type, combine_bl, shipping_mark_on_bl, tank_requirement, other_requirement) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, req.user.id, name.trim(), bl_type || null, combine_bl || null, shipping_mark_on_bl || null, tank_requirement || null, other_requirement || null],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id, success: true });
+    }
+  );
+});
+
+app.put('/api/customers/:id', authenticateToken, (req, res) => {
+  const { name, bl_type, combine_bl, shipping_mark_on_bl, tank_requirement, other_requirement } = req.body;
+  db.run(
+    `UPDATE customers SET name=?, bl_type=?, combine_bl=?, shipping_mark_on_bl=?, tank_requirement=?, other_requirement=? WHERE id=?`,
+    [name, bl_type || null, combine_bl || null, shipping_mark_on_bl || null, tank_requirement || null, other_requirement || null, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
 });
 
 app.delete('/api/customers/:id', authenticateToken, (req, res) => {
@@ -163,6 +183,7 @@ app.delete('/api/customers/:id', authenticateToken, (req, res) => {
     res.json({ success: true });
   });
 });
+
 
 // UPDATE SO RECORD — saves old_data + new_data snapshots
 app.put('/api/records/:id', authenticateToken, (req, res) => {
@@ -392,10 +413,14 @@ app.post('/api/users/:id/role', authenticateToken, isAdmin, (req, res) => {
 app.post('/api/generate-excel', authenticateToken, async (req, res) => {
   const { so_number, customer_name, etd, equipment_type, dangerous_type, template_config_id } = req.body;
 
+  // Fetch full customer info from DB
+  const customerInfo = await new Promise(resolve => {
+    db.get(`SELECT * FROM customers WHERE LOWER(name) = LOWER(?)`, [customer_name], (err, row) => resolve(row || {}));
+  });
+
   // Find template: 1) by explicit config id, 2) by DB lookup, 3) smart filesystem scan
   const findTemplatePath = (callback) => {
     if (template_config_id) {
-      // User explicitly selected a template config
       db.get(`SELECT * FROM template_configs WHERE id = ?`, [template_config_id], (err, row) => {
         if (row && row.template_filename) {
           const p = path.join(TEMPLATES_DIR, row.template_filename);
@@ -404,7 +429,6 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
         callback(null, null);
       });
     } else {
-      // Auto-match by equipment_type + cargo_category
       db.get(
         `SELECT * FROM template_configs WHERE LOWER(equipment_type) = LOWER(?) AND LOWER(cargo_category) = LOWER(?)`,
         [equipment_type, dangerous_type],
@@ -447,60 +471,101 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
       await workbook.xlsx.readFile(templatePath);
       const ws = workbook.getWorksheet(1);
 
-      // Per spec: insert 3 header rows at the very top (Row 1, 2, 3)
-      // insertRow shifts existing content down
-      ws.spliceRows(1, 0,
-        // Row 1: Document title + date
-        ['EcoGreen Oleochemicals — Shipment Document', '', `Document Date: ${dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY')}`],
-        // Row 2: Customer & SO info
-        [`SO Number: ${so_number}`, `Customer: ${customer_name}`, ''],
-        // Row 3: ETD & type info
-        [`ETD: ${etd}`, `Type: ${equipment_type}`, `Category: ${dangerous_type}`],
-      );
+      // Build 9 header rows: Indicator (col A) | Value (col B)
+      const docDate = dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY');
+      const headerRows = [
+        ['Document Date',        docDate],
+        ['SO Number',            so_number || '-'],
+        ['Customer',             customer_name || '-'],
+        ['ETD',                  etd || '-'],
+        ['Equipment Type',       equipment_type || '-'],
+        ['Cargo Category',       dangerous_type || '-'],
+        ['B/L Type',             customerInfo.bl_type || '-'],
+        ['Combine B/L',          customerInfo.combine_bl || '-'],
+        ['Shipping Mark on B/L', customerInfo.shipping_mark_on_bl || '-'],
+        ['Tank Requirement',     customerInfo.tank_requirement || '-'],
+        ['Other Requirement',    customerInfo.other_requirement || '-'],
+      ];
 
-      // Style the 3 inserted header rows
-      [1, 2, 3].forEach(rowNum => {
+      // Insert header rows at top; existing content shifts down
+      ws.spliceRows(1, 0, ...headerRows);
+
+      // Style: dark green bg, white bold text, A:B columns, min height
+      const DARK = 'FF004737';
+      const LIGHT = 'FFE8F5E9';
+      const WHITE = 'FFFFFFFF';
+      headerRows.forEach((_, i) => {
+        const rowNum = i + 1;
         const row = ws.getRow(rowNum);
-        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
-          if (colNum <= 3 && cell.value) {
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004737' } };
-            cell.alignment = { vertical: 'middle' };
-          }
-        });
-        row.height = 22;
+        const isFirst = i === 0;
+        // Column A — Indicator
+        const cellA = ws.getCell(`A${rowNum}`);
+        cellA.value = headerRows[i][0];
+        cellA.font = { bold: true, color: { argb: WHITE }, size: 10 };
+        cellA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+        cellA.alignment = { vertical: 'middle', wrapText: false };
+        // Column B — Value
+        const cellB = ws.getCell(`B${rowNum}`);
+        cellB.value = headerRows[i][1];
+        cellB.font = { bold: isFirst, color: { argb: isFirst ? WHITE : 'FF1A1A1A' }, size: 10 };
+        cellB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFirst ? DARK : LIGHT } };
+        cellB.alignment = { vertical: 'middle', wrapText: true };
+        row.height = 18;
       });
+      // Ensure col widths look good
+      ws.getColumn('A').width = Math.max(ws.getColumn('A').width || 0, 26);
+      ws.getColumn('B').width = Math.max(ws.getColumn('B').width || 0, 50);
 
     } else {
       // === FALLBACK: no template — generate from scratch ===
       workbook.creator = 'EcoGreen Tracking System';
       const ws = workbook.addWorksheet('SO Report');
 
-      ws.mergeCells('A1:F1');
+      // Title banner
+      ws.mergeCells('A1:B1');
       ws.getCell('A1').value = 'ECOGREEN OLEOCHEMICALS — SHIPMENT ORDER REPORT';
-      ws.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+      ws.getCell('A1').font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
       ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004737' } };
       ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
-      ws.getRow(1).height = 30;
+      ws.getRow(1).height = 32;
 
-      const fields = [
-        ['SO Number', so_number],
-        ['Customer Name', customer_name],
-        ['ETD Date', etd],
-        ['Equipment Type', equipment_type],
-        ['Cargo Category', dangerous_type],
-        ['Document Date', dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY HH:mm [WIB]')],
+      // All 9 info rows
+      const docDate = dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY HH:mm [WIB]');
+      const infoRows = [
+        ['Document Date',        docDate],
+        ['SO Number',            so_number || '-'],
+        ['Customer',             customer_name || '-'],
+        ['ETD',                  etd || '-'],
+        ['Equipment Type',       equipment_type || '-'],
+        ['Cargo Category',       dangerous_type || '-'],
+        ['B/L Type',             customerInfo.bl_type || '-'],
+        ['Combine B/L',          customerInfo.combine_bl || '-'],
+        ['Shipping Mark on B/L', customerInfo.shipping_mark_on_bl || '-'],
+        ['Tank Requirement',     customerInfo.tank_requirement || '-'],
+        ['Other Requirement',    customerInfo.other_requirement || '-'],
       ];
-      ws.getRow(2).values = ['Field', 'Value'];
-      ws.getRow(2).font = { bold: true, color: { argb: 'FF004737' } };
-      ws.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
-      fields.forEach((row, i) => {
-        ws.getRow(3 + i).values = row;
+
+      infoRows.forEach((row, i) => {
+        const rowNum = 2 + i;
+        const ws_row = ws.getRow(rowNum);
+        ws.getCell(`A${rowNum}`).value = row[0];
+        ws.getCell(`A${rowNum}`).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        ws.getCell(`A${rowNum}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004737' } };
+        ws.getCell(`A${rowNum}`).alignment = { vertical: 'middle' };
+        ws.getCell(`B${rowNum}`).value = row[1];
+        ws.getCell(`B${rowNum}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+        ws.getCell(`B${rowNum}`).alignment = { vertical: 'middle', wrapText: true };
+        ws_row.height = 18;
       });
-      ws.getColumn(1).width = 25;
-      ws.getColumn(2).width = 40;
-      ws.getRow(10).values = ['NOTE', `No master template found for: ${equipment_type} - ${dangerous_type}. Upload via Settings.`];
-      ws.getCell('A10').font = { italic: true, color: { argb: 'FFFF6600' } };
+
+      ws.getColumn(1).width = 26;
+      ws.getColumn(2).width = 55;
+
+      const noteRow = 2 + infoRows.length + 1;
+      ws.getCell(`A${noteRow}`).value = 'NOTE';
+      ws.getCell(`B${noteRow}`).value = `No master template found for: ${equipment_type} - ${dangerous_type}. Upload via Settings.`;
+      ws.getCell(`A${noteRow}`).font = { italic: true, color: { argb: 'FFFF6600' } };
+      ws.getCell(`B${noteRow}`).font = { italic: true, color: { argb: 'FFFF6600' } };
     }
 
     await workbook.xlsx.writeFile(exportPath);
