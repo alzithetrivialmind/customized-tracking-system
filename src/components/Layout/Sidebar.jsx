@@ -131,17 +131,32 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen = true }) => {
           color: 'rgba(255,255,255,0.5)', 
           cursor: 'pointer',
           borderRadius: '10px',
-          transition: 'all 0.2s'
+          transition: 'all 0.2s',
+          marginBottom: '1rem'
         }}>
           <LogOut size={20} />
           <span>Logout</span>
         </button>
+        
+        <div style={{ padding: '0 4px', textAlign: 'center' }}>
+          <a href="https://portfolio-alzi.netlify.app/" target="_blank" rel="noopener noreferrer" style={{ 
+            fontSize: '0.7rem', 
+            color: 'rgba(255,255,255,0.2)', 
+            textDecoration: 'none',
+            transition: 'color 0.2s'
+          }} className="watermark-link">
+            All rights reserved by Alzi
+          </a>
+        </div>
       </div>
 
       <style jsx>{`
         .sidebar-btn:hover {
           background: rgba(255, 255, 255, 0.05) !important;
           color: white !important;
+        }
+        .watermark-link:hover {
+          color: var(--brand-green) !important;
         }
       `}</style>
     </div>

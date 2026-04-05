@@ -42,4 +42,4 @@ npm run dev
 - **In-Memory Injection**: Enterprise-grade Excel report generation without local file system writes.
 
 ---
-© 2026 EcoGreen Oleochemicals - Customer Service Executive Tools
+All rights reserved by [Alzi](https://portfolio-alzi.netlify.app/)

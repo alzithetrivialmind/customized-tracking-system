@@ -115,7 +115,7 @@ const LoginPage = () => {
         </form>
 
         <div style={{ marginTop: '2.5rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          © 2026 EcoGreen Oleochemicals<br/>
+          All rights reserved by <a href="https://portfolio-alzi.netlify.app/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-green)', textDecoration: 'none', fontWeight: 'bold' }}>Alzi</a><br/>
           Internal Logistics & CS Management Tool
         </div>
       </div>
