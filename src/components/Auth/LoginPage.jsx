@@ -17,7 +17,7 @@ const LoginPage = () => {
     try {
       await login(email, password);
     } catch (err) {
-      setError(err.message || 'Failed to login. Please check your credentials.');
+      setError(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }

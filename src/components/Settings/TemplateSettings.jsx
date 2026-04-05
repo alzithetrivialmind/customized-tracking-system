@@ -24,15 +24,8 @@ const TemplateSettings = () => {
   const loadStatus = async () => {
     setLoading(true);
     try {
-      const { data: files, error } = await supabase.storage.from('templates').list();
-      if (files) {
-        const status = {};
-        files.forEach(f => {
-          const id = f.name.split('.')[0];
-          status[id] = true;
-        });
-        setTemplates(status);
-      }
+      const status = await api.get('/templates');
+      setTemplates(status);
     } catch (err) {
       console.error(err);
     } finally {
@@ -43,15 +36,28 @@ const TemplateSettings = () => {
   const handleUpload = async (id, file) => {
     if (!file || !isAdmin) return;
     
-    // Check if filename is correct
-    const { error } = await supabase.storage
-      .from('templates')
-      .upload(`${id}.xlsx`, file, { upsert: true });
+    const formData = new FormData();
+    formData.append('template', file);
 
-    if (error) alert(error.message);
-    else {
-      alert(`${id} logic template updated successfully.`);
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('ecogreen_token');
+      const response = await fetch(`/api/templates/${id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+      
+      alert(`${id} master template updated successfully.`);
       loadStatus();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 

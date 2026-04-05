@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Plus, Download, ChevronRight, CheckCircle, Search, Filter, 
@@ -8,16 +8,13 @@ import {
 import RecordForm from './RecordForm';
 
 const RecordsList = ({ status }) => {
-  const { user, isAdmin, profile } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [records, setRecords] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [equipTypes, setEquipTypes] = useState([]);
-  const [dangerTypes, setDangerTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState(null);
   const [editingRecord, setEditingRecord] = useState(null);
   const [editData, setEditData] = useState({});
   const [editMeta, setEditMeta] = useState({ comment: '', attachment: null });
@@ -29,49 +26,31 @@ const RecordsList = ({ status }) => {
 
   const loadData = async () => {
     setLoading(true);
-    
-    // 1. Fetch Records (Filtered by RLS or Admin Role)
-    let query = supabase.from('so_records').select('*, shipment_logs(*)').eq('status', status);
-    
-    // If not admin, RLS handles it, but we can be explicit
-    if (!isAdmin) {
-      query = query.eq('user_id', user.id);
+    try {
+      const recs = await api.get(`/records?status=${status}`);
+      setRecords(recs);
+
+      const custs = await api.get('/customers');
+      setCustomers(custs.map(c => c.name));
+    } catch (err) {
+      console.error('Fetch failed:', err.message);
+    } finally {
+      setLoading(false);
     }
-    
-    const { data: recs, error } = await query.order('etd', { ascending: true });
-    if (recs) setRecords(recs);
-
-    // 2. Fetch Metadata
-    const { data: custs } = await supabase.from('customers').select('name');
-    if (custs) setCustomers(custs.map(c => c.name));
-
-    // Hardcoded for now or fetch from a config table if you implement one later
-    setEquipTypes(['Container', 'Isotank', 'Flexitank']); 
-    setDangerTypes(['DG', 'NON-DG']);
-    
-    setLoading(false);
   };
 
   const handleExport = async (record) => {
     setIsExporting(record.id);
     try {
-      const response = await fetch('/api/generate-excel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          recordId: record.id,
-          soNumber: record.soNumber,
-          customerName: record.customerName,
-          etd: record.etd,
-          equipmentType: record.equipmentType,
-          dangerousType: record.dangerousType
-        })
+      const data = await api.post('/generate-excel', { 
+        so_number: record.so_number || record.soNumber, // Handle both snake/camel
+        customer_name: record.customer_name || record.customerName,
+        etd: record.etd,
+        equipment_type: record.equipment_type || record.equipmentType,
+        dangerous_type: record.dangerous_type || record.dangerousType
       });
       
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      
-      window.open(result.downloadUrl, '_blank');
+      window.open(data.downloadUrl, '_blank');
     } catch (err) {
       alert(`Export failed: ${err.message}`);
     } finally {
@@ -81,27 +60,12 @@ const RecordsList = ({ status }) => {
 
   const markAsDone = async (record) => {
     if (!confirm('Mark this SO as Completed?')) return;
-    
-    const { error } = await supabase
-      .from('so_records')
-      .update({ status: 'done', completed_at: new Date().toISOString() })
-      .eq('id', record.id);
-
-    if (error) {
-      alert(error.message);
-      return;
+    try {
+      await api.post(`/records/${record.id}/status`, { status: 'done', comment: 'Shipment process finished' });
+      loadData();
+    } catch (err) {
+      alert(err.message);
     }
-
-    // Add log
-    await supabase.from('shipment_logs').insert({
-      so_id: record.id,
-      modifier_id: user.id,
-      action: 'Status Changed',
-      details: 'Moved to Completed',
-      comment: 'Shipment process finished'
-    });
-
-    loadData();
   };
 
   const saveEdit = async () => {
@@ -111,43 +75,15 @@ const RecordsList = ({ status }) => {
     }
     
     setLoading(true);
-    const changes = [];
-    if (editingRecord.soNumber !== editData.soNumber) changes.push(`SO: ${editingRecord.soNumber} -> ${editData.soNumber}`);
-    if (editingRecord.customerName !== editData.customerName) changes.push(`Customer: ${editingRecord.customerName} -> ${editData.customerName}`);
-    if (editingRecord.etd !== editData.etd) changes.push(`ETD: ${editingRecord.etd} -> ${editData.etd}`);
-    if (editingRecord.manualPriority !== editData.manualPriority) {
-        changes.push(`Priority: ${editingRecord.manualPriority || 'AUTO'} -> ${editData.manualPriority || 'AUTO'}`);
-    }
-
-    const { error: updateError } = await supabase
-      .from('so_records')
-      .update({
-        so_number: editData.soNumber,
-        customer_name: editData.customerName,
-        etd: editData.etd,
-        equipment_type: editData.equipmentType,
-        dangerous_type: editData.dangerousType,
-        manual_priority: editData.manualPriority
-      })
-      .eq('id', editingRecord.id);
-
-    if (updateError) {
-      alert(updateError.message);
+    try {
+      await api.put(`/records/${editingRecord.id}`, { ...editData, comment: editMeta.comment });
+      setEditingRecord(null);
+      loadData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Add log
-    await supabase.from('shipment_logs').insert({
-      so_id: editingRecord.id,
-      modifier_id: user.id,
-      action: isAdmin && editingRecord.user_id !== user.id ? `Edited by Admin: ${profile.full_name}` : 'Record Updated',
-      details: changes.join('; '),
-      comment: editMeta.comment
-    });
-
-    setEditingRecord(null);
-    loadData();
   };
 
   const handleFileChange = (e) => {

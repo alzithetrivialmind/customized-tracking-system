@@ -1,97 +1,47 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Safety Timeout: Force stop loading after 5 seconds if Supabase hangs
-    const timeout = setTimeout(() => {
-      if (loading) {
-        console.warn('Auth initialization timed out. Forcing stop loading.');
-        setLoading(false);
-      }
-    }, 5000);
-
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        if (session) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
-        }
-      } catch (err) {
-        console.error('Session check failed:', err);
-      } finally {
-        setLoading(false);
-        clearTimeout(timeout);
-      }
-    };
-
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (session) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-      } catch (err) {
-        console.error('Auth state change error:', err);
-      } finally {
-        setLoading(false);
-        clearTimeout(timeout);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    const token = localStorage.getItem('ecogreen_token');
+    const storedUser = localStorage.getItem('ecogreen_user');
+    
+    if (token && storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
   }, []);
 
-  const fetchProfile = async (uid) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', uid)
-        .single();
-
-      if (data) setProfile(data);
-      if (error) {
-        console.warn('Profile not found for user:', uid);
-        setProfile({ id: uid, role: 'user', force_password_change: false });
-      }
-    } catch (err) {
-      console.error('Fetch profile error:', err);
-    }
-  };
-
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
+    const { token, user } = await api.post('/auth/login', { email, password });
+    localStorage.setItem('ecogreen_token', token);
+    localStorage.setItem('ecogreen_user', JSON.stringify(user));
+    setUser(user);
+    return user;
   };
 
-  const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+  const logout = () => {
+    localStorage.removeItem('ecogreen_token');
+    localStorage.removeItem('ecogreen_user');
+    setUser(null);
   };
 
-  const isAdmin = profile?.role === 'admin';
+  const changePassword = async (newPassword) => {
+    await api.post('/auth/change-password', { newPassword });
+    const updatedUser = { ...user, forcePasswordChange: false };
+    localStorage.setItem('ecogreen_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
+  const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, profile, isAdmin, loading, login, logout, refreshProfile: () => fetchProfile(user?.id) }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, login, logout, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

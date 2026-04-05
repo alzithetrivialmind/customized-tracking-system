@@ -25,23 +25,7 @@ const ForcePasswordChange = () => {
     setError('');
 
     try {
-      // 1. Update auth password
-      const { error: authError } = await supabase.auth.updateUser({ 
-        password: newPassword 
-      });
-      if (authError) throw authError;
-
-      // 2. Update profile flag
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ force_password_change: false })
-        .eq('id', user.id);
-      
-      if (profileError) throw profileError;
-
-      // 3. Refresh profile to trigger navigation
-      await refreshProfile();
+      await changePassword(newPassword);
     } catch (err) {
       setError(err.message || 'Error updating password.');
     } finally {

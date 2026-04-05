@@ -11,7 +11,7 @@ import UserManagement from './components/Admin/UserManagement';
 import { Loader2 } from 'lucide-react';
 
 const AppContent = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
   if (loading) return (
@@ -28,7 +28,7 @@ const AppContent = () => {
     return <LoginPage />;
   }
 
-  if (profile?.force_password_change) {
+  if (user.forcePasswordChange) {
     return <ForcePasswordChange />;
   }
 

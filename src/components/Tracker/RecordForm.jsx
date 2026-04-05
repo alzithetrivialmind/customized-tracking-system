@@ -1,95 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { X, Calendar, Plus, Save, Package, ShieldAlert, UserPlus, Loader2 } from 'lucide-react';
 
 const RecordForm = ({ onClose }) => {
   const { user } = useAuth();
   const [customers, setCustomers] = useState([]);
-  const [equipTypes, setEquipTypes] = useState([]);
-  const [dangerTypes, setDangerTypes] = useState([]);
+  const [equipTypes, setEquipTypes] = useState(['Container', 'Isotank', 'Flexitank']);
+  const [dangerTypes, setDangerTypes] = useState(['DG', 'NON-DG']);
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    soNumber: '',
-    customerName: '',
-    equipmentType: '',
-    dangerousType: '',
+    so_number: '',
+    customer_name: '',
+    equipment_type: '',
+    dangerous_type: '',
     etd: '',
   });
-
-  const [newCust, setNewCust] = useState('');
 
   useEffect(() => {
     loadMetadata();
   }, []);
 
   const loadMetadata = async () => {
-    const { data: custs } = await supabase.from('customers').select('name');
-    if (custs) setCustomers(custs.map(c => c.name));
-    
-    // Static for now
-    setEquipTypes(['Container', 'Isotank', 'Flexitank']);
-    setDangerTypes(['DG', 'NON-DG']);
+    try {
+      const custs = await api.get('/customers');
+      setCustomers(custs.map(c => c.name));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.soNumber || !formData.customerName || !formData.etd) {
+    if (!formData.so_number || !formData.customer_name || !formData.etd) {
       alert('Please fill all required fields (*)');
       return;
     }
 
     setLoading(true);
-    
-    // 1. Create SO Record
-    const { data: newRecord, error: soError } = await supabase
-      .from('so_records')
-      .insert({
-        user_id: user.id,
-        so_number: formData.soNumber,
-        customer_name: formData.customerName,
-        equipment_type: formData.equipmentType,
-        dangerous_type: formData.dangerousType,
-        etd: formData.etd,
-        status: 'ongoing'
-      })
-      .select()
-      .single();
-
-    if (soError) {
-      alert(soError.message);
+    try {
+      await api.post('/records', formData);
+      onClose();
+    } catch (err) {
+      alert(err.message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // 2. Create Initial Log
-    await supabase.from('shipment_logs').insert({
-      so_id: newRecord.id,
-      modifier_id: user.id,
-      action: 'Created',
-      details: `SO ${formData.soNumber} added to tracking.`,
-      comment: 'Initial Creation'
-    });
-    
-    setLoading(false);
-    onClose();
   };
 
   const addCustomer = async () => {
     const name = prompt('New Customer Name:');
     if (!name) return;
 
-    const { error } = await supabase.from('customers').insert({ 
-      user_id: user.id, 
-      name: name 
-    });
-
-    if (error) {
-      alert(error.message);
-    } else {
+    try {
+      await api.post('/customers', { name });
       loadMetadata();
-      setFormData({ ...formData, customerName: name });
+      setFormData({ ...formData, customer_name: name });
+    } catch (err) {
+      alert(err.message);
     }
   };
 
