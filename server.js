@@ -115,6 +115,51 @@ app.post('/api/customers', authenticateToken, (req, res) => {
   });
 });
 
+app.delete('/api/customers/:id', authenticateToken, (req, res) => {
+  db.run(`DELETE FROM customers WHERE id = ?`, [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// UPDATE SO RECORD
+app.put('/api/records/:id', authenticateToken, (req, res) => {
+  const { soNumber, customerName, etd, equipmentType, dangerousType, manualPriority, comment } = req.body;
+  db.run(
+    `UPDATE so_records SET so_number=?, customer_name=?, etd=?, equipment_type=?, dangerous_type=?, manual_priority=? WHERE id=?`,
+    [soNumber, customerName, etd, equipmentType, dangerousType, manualPriority || null, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      // Add audit log
+      const logId = uuidv4();
+      db.run(
+        `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment) VALUES (?, ?, ?, ?, ?)`,
+        [logId, req.params.id, req.user.id, 'Record Updated', comment || 'Updated.'],
+        () => res.json({ success: true })
+      );
+    }
+  );
+});
+
+// UPDATE SO STATUS (mark done / reopen)
+app.post('/api/records/:id/status', authenticateToken, (req, res) => {
+  const { status, comment } = req.body;
+  const completedAt = status === 'done' ? new Date().toISOString() : null;
+  db.run(
+    `UPDATE so_records SET status=?, completed_at=? WHERE id=?`,
+    [status, completedAt, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const logId = uuidv4();
+      db.run(
+        `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment) VALUES (?, ?, ?, ?, ?)`,
+        [logId, req.params.id, req.user.id, status === 'done' ? 'Completed' : 'Reopened', comment || `Status set to ${status}.`],
+        () => res.json({ success: true })
+      );
+    }
+  );
+});
+
 // 5. TEMPLATE MANAGEMENT ROUTES
 app.get('/api/templates', authenticateToken, (req, res) => {
   fs.readdir(TEMPLATES_DIR, (err, files) => {

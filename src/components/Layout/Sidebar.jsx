@@ -1,13 +1,16 @@
 import React from 'react';
-import { LayoutDashboard, Clock, CheckCircle, Users, Settings, LogOut } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { LayoutDashboard, Clock, CheckCircle, Users, Settings, LogOut, ShieldCheck } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
+  const { user, isAdmin, logout } = useAuth();
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { id: 'records', label: 'Ongoing SO', icon: <Clock size={20} /> },
     { id: 'completed', label: 'Completed SO', icon: <CheckCircle size={20} /> },
     { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
     { id: 'settings', label: 'Settings & Templates', icon: <Settings size={20} /> },
+    ...(isAdmin ? [{ id: 'users', label: 'User Management', icon: <ShieldCheck size={20} /> }] : []),
   ];
 
   return (
@@ -76,7 +79,10 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       </nav>
 
       <div className="sidebar-footer" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
-        <button style={{ 
+        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', padding: '0 4px', marginBottom: '1rem' }}>
+          {user?.fullName || user?.email}
+        </div>
+        <button onClick={logout} style={{ 
           width: '100%', 
           display: 'flex', 
           alignItems: 'center', 
@@ -85,7 +91,9 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           background: 'transparent', 
           border: 'none', 
           color: 'rgba(255,255,255,0.5)', 
-          cursor: 'pointer' 
+          cursor: 'pointer',
+          borderRadius: '10px',
+          transition: 'all 0.2s'
         }}>
           <LogOut size={20} />
           <span>Logout</span>

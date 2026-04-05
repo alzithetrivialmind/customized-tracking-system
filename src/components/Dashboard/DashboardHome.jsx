@@ -21,31 +21,28 @@ const DashboardHome = ({ setActiveTab }) => {
   const loadStats = async () => {
     setLoading(true);
     try {
-      // Fetch all records for calculation (API handles admin vs user)
-      const all = await api.get('/records?status=all');
-      
-      const ongoing = all.filter(r => r.status === 'ongoing');
-      const done = all.filter(r => r.status === 'done');
-      
+      const [ongoing, done] = await Promise.all([
+        api.get('/records?status=ongoing'),
+        api.get('/records?status=done'),
+      ]);
+
       const high = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.HIGH);
-      const mdm = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.MEDIUM);
-      const nrm = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.NORMAL);
-      
+      const mdm  = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.MEDIUM);
+      const nrm  = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.NORMAL);
+
       const todayStr = new Date().toISOString().split('T')[0];
       const todayDeliveries = ongoing.filter(r => r.etd === todayStr);
-      
-      const upcoming = ongoing
-        .sort((a, b) => new Date(a.etd) - new Date(b.etd))
-        .slice(0, 5);
 
-      setStats({ 
-        ongoing: ongoing.length, 
-        done: done.length, 
-        high: high.length, 
+      const upcoming = [...ongoing].sort((a, b) => new Date(a.etd) - new Date(b.etd)).slice(0, 5);
+
+      setStats({
+        ongoing: ongoing.length,
+        done: done.length,
+        high: high.length,
         medium: mdm.length,
         normal: nrm.length,
         today: todayDeliveries.length,
-        upcoming 
+        upcoming,
       });
     } catch (err) {
       console.error('Stats fetch error:', err);
