@@ -93,6 +93,42 @@ const initDb = async () => {
         }
       });
 
+      // EQUIPMENT TYPES (dynamic, admin-managed)
+      db.run(`CREATE TABLE IF NOT EXISTS equipment_types (
+        id TEXT PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // CARGO CATEGORIES (dynamic, admin-managed)
+      db.run(`CREATE TABLE IF NOT EXISTS cargo_categories (
+        id TEXT PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // TEMPLATE CONFIGURATIONS (equipment + cargo → excel file)
+      db.run(`CREATE TABLE IF NOT EXISTS template_configs (
+        id TEXT PRIMARY KEY,
+        equipment_type TEXT NOT NULL,
+        cargo_category TEXT NOT NULL,
+        template_filename TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(equipment_type, cargo_category)
+      )`);
+
+      // SEED DEFAULT EQUIPMENT TYPES
+      const defaultEquip = ['Container', 'Isotank', 'Flexitank'];
+      defaultEquip.forEach(name => {
+        db.run(`INSERT OR IGNORE INTO equipment_types (id, name) VALUES (?, ?)`, [name.toLowerCase().replace(/\s+/g,'-'), name]);
+      });
+
+      // SEED DEFAULT CARGO CATEGORIES
+      const defaultCargo = ['DG', 'NON-DG'];
+      defaultCargo.forEach(name => {
+        db.run(`INSERT OR IGNORE INTO cargo_categories (id, name) VALUES (?, ?)`, [name.toLowerCase().replace(/\s+/g,'-'), name]);
+      });
+
       resolve();
     });
   });
@@ -112,6 +148,8 @@ const migrateDb = () => {
   // so_records: new columns per spec
   addColumn('so_records', 'is_active', 'INTEGER DEFAULT 1');
   addColumn('so_records', 'generated_excel_path', 'TEXT DEFAULT NULL');
+  addColumn('so_records', 'notes', 'TEXT DEFAULT NULL');
+  addColumn('so_records', 'template_config_id', 'TEXT DEFAULT NULL');
 
   // shipment_logs: old/new data snapshots + updated_by
   addColumn('shipment_logs', 'old_data', 'TEXT DEFAULT NULL');

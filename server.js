@@ -112,12 +112,12 @@ app.get('/api/records/:id/logs', authenticateToken, (req, res) => {
 });
 
 app.post('/api/records', authenticateToken, (req, res) => {
-  const { so_number, customer_name, equipment_type, dangerous_type, etd } = req.body;
+  const { so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id } = req.body;
   if (!so_number || !customer_name || !etd) return res.status(400).json({ error: 'so_number, customer_name, and etd are required.' });
   const id = uuidv4();
   db.run(
-    `INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd, is_active) VALUES (?,?,?,?,?,?,?,1)`,
-    [id, req.user.id, so_number, customer_name, equipment_type || '', dangerous_type || '', etd],
+    `INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id, is_active) VALUES (?,?,?,?,?,?,?,?,?,1)`,
+    [id, req.user.id, so_number, customer_name, equipment_type || '', dangerous_type || '', etd, notes || null, template_config_id || null],
     (err) => {
       if (err) {
         if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'SO Number already exists.' });
@@ -127,7 +127,7 @@ app.post('/api/records', authenticateToken, (req, res) => {
       db.run(
         `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by, new_data) VALUES (?,?,?,?,?,?,?)`,
         [logId, id, req.user.id, 'Created', 'Initial SO entry added.', req.user.fullName || req.user.email,
-         JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd })],
+         JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes })],
         () => res.json({ id, success: true })
       );
     }
@@ -222,21 +222,138 @@ app.post('/api/records/:id/status', authenticateToken, (req, res) => {
   );
 });
 
-// 5. TEMPLATE MANAGEMENT ROUTES
-app.get('/api/templates', authenticateToken, (req, res) => {
-  fs.readdir(TEMPLATES_DIR, (err, files) => {
-    if (err) return res.status(500).json({ error: 'Cannot read templates.' });
-    const status = {};
-    files.forEach(f => {
-      const id = f.split('.')[0];
-      status[id] = true;
-    });
-    res.json(status);
+// ─── 5. DYNAMIC CONFIG ROUTES ────────────────────────────────────────────────
+
+// Equipment Types
+app.get('/api/equipment-types', authenticateToken, (req, res) => {
+  db.all(`SELECT * FROM equipment_types ORDER BY name ASC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+app.post('/api/equipment-types', authenticateToken, isAdmin, (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name required.' });
+  const id = uuidv4();
+  db.run(`INSERT INTO equipment_types (id, name) VALUES (?, ?)`, [id, name.trim()], (err) => {
+    if (err) {
+      if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Already exists.' });
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id, name: name.trim(), success: true });
+  });
+});
+app.delete('/api/equipment-types/:id', authenticateToken, isAdmin, (req, res) => {
+  db.run(`DELETE FROM equipment_types WHERE id = ?`, [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
   });
 });
 
-app.post('/api/templates/:id', authenticateToken, isAdmin, upload.single('template'), (req, res) => {
-  res.json({ success: true, message: `${req.params.id} template uploaded.` });
+// Cargo Categories
+app.get('/api/cargo-categories', authenticateToken, (req, res) => {
+  db.all(`SELECT * FROM cargo_categories ORDER BY name ASC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+app.post('/api/cargo-categories', authenticateToken, isAdmin, (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name required.' });
+  const id = uuidv4();
+  db.run(`INSERT INTO cargo_categories (id, name) VALUES (?, ?)`, [id, name.trim()], (err) => {
+    if (err) {
+      if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Already exists.' });
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id, name: name.trim(), success: true });
+  });
+});
+app.delete('/api/cargo-categories/:id', authenticateToken, isAdmin, (req, res) => {
+  db.run(`DELETE FROM cargo_categories WHERE id = ?`, [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// Template Configurations (equipment + cargo → excel file)
+const templateConfigUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, TEMPLATES_DIR),
+    filename: (req, file, cb) => {
+      // Store as: "{equipment_type} - {cargo_category}.xlsx" matching user's naming style
+      const { equipment_type, cargo_category } = req.body;
+      cb(null, `${equipment_type} - ${cargo_category}.xlsx`);
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    if (!file.originalname.match(/\.(xlsx|xls)$/i)) {
+      return cb(new Error('Only Excel files allowed.'), false);
+    }
+    cb(null, true);
+  }
+});
+
+app.get('/api/template-configs', authenticateToken, (req, res) => {
+  db.all(`SELECT * FROM template_configs ORDER BY equipment_type, cargo_category`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    // Annotate with whether the file actually exists on disk
+    const annotated = rows.map(r => ({
+      ...r,
+      file_exists: fs.existsSync(path.join(TEMPLATES_DIR, r.template_filename)),
+    }));
+    res.json(annotated);
+  });
+});
+
+app.post('/api/template-configs', authenticateToken, isAdmin, (req, res, next) => {
+  templateConfigUpload.single('template')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+
+    const { equipment_type, cargo_category } = req.body;
+    if (!equipment_type || !cargo_category) {
+      return res.status(400).json({ error: 'equipment_type and cargo_category are required.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Template Excel file is required.' });
+    }
+
+    const id = uuidv4();
+    const filename = req.file.filename;
+
+    db.run(
+      `INSERT INTO template_configs (id, equipment_type, cargo_category, template_filename)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(equipment_type, cargo_category) DO UPDATE SET template_filename=excluded.template_filename, created_at=CURRENT_TIMESTAMP`,
+      [id, equipment_type, cargo_category, filename],
+      (err2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        res.json({ id, equipment_type, cargo_category, template_filename: filename, success: true });
+      }
+    );
+  });
+});
+
+app.delete('/api/template-configs/:id', authenticateToken, isAdmin, (req, res) => {
+  db.get(`SELECT * FROM template_configs WHERE id = ?`, [req.params.id], (err, row) => {
+    if (err || !row) return res.status(404).json({ error: 'Config not found.' });
+    // Remove the file from disk
+    const filePath = path.join(TEMPLATES_DIR, row.template_filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    db.run(`DELETE FROM template_configs WHERE id = ?`, [req.params.id], () => {
+      res.json({ success: true });
+    });
+  });
+});
+
+// Legacy template status endpoint (kept for compatibility)
+app.get('/api/templates', authenticateToken, (req, res) => {
+  db.all(`SELECT * FROM template_configs`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const status = {};
+    rows.forEach(r => { status[`${r.equipment_type}_${r.cargo_category}`] = true; });
+    res.json(status);
+  });
 });
 
 // 6. USER MANAGEMENT ROUTES
@@ -273,32 +390,49 @@ app.post('/api/users/:id/role', authenticateToken, isAdmin, (req, res) => {
 
 // 7. EXCEL GENERATION
 app.post('/api/generate-excel', authenticateToken, async (req, res) => {
-  const { so_number, customer_name, etd, equipment_type, dangerous_type } = req.body;
+  const { so_number, customer_name, etd, equipment_type, dangerous_type, template_config_id } = req.body;
 
-  // Smart template finder: scan the templates folder and match by keywords
-  // Handles naming like "CONTAINER - DG.xlsx", "ISOTANK - NON DG.xlsx", etc.
-  const findTemplate = () => {
-    if (!fs.existsSync(TEMPLATES_DIR)) return null;
-    const files = fs.readdirSync(TEMPLATES_DIR).filter(f => f.endsWith('.xlsx'));
-
-    const equip = (equipment_type || '').toUpperCase();
-    const danger = (dangerous_type || '').toUpperCase().replace('-', '').replace(' ', '');
-
-    // Try to find a file whose name contains both the equipment and danger keywords
-    const match = files.find(f => {
-      const name = f.toUpperCase();
-      const equipMatch = name.includes(equip);
-      // "NON-DG" and "NON DG" and "NONDG" should all match "NON DG" in filename
-      const dangerMatch = danger.includes('NON')
-        ? name.includes('NON')
-        : name.includes(danger) && !name.includes('NON');
-      return equipMatch && dangerMatch;
-    });
-
-    return match ? path.join(TEMPLATES_DIR, match) : null;
+  // Find template: 1) by explicit config id, 2) by DB lookup, 3) smart filesystem scan
+  const findTemplatePath = (callback) => {
+    if (template_config_id) {
+      // User explicitly selected a template config
+      db.get(`SELECT * FROM template_configs WHERE id = ?`, [template_config_id], (err, row) => {
+        if (row && row.template_filename) {
+          const p = path.join(TEMPLATES_DIR, row.template_filename);
+          return callback(fs.existsSync(p) ? p : null, row);
+        }
+        callback(null, null);
+      });
+    } else {
+      // Auto-match by equipment_type + cargo_category
+      db.get(
+        `SELECT * FROM template_configs WHERE LOWER(equipment_type) = LOWER(?) AND LOWER(cargo_category) = LOWER(?)`,
+        [equipment_type, dangerous_type],
+        (err, row) => {
+          if (row && row.template_filename) {
+            const p = path.join(TEMPLATES_DIR, row.template_filename);
+            if (fs.existsSync(p)) return callback(p, row);
+          }
+          // Fallback: smart filesystem keyword scan
+          if (fs.existsSync(TEMPLATES_DIR)) {
+            const files = fs.readdirSync(TEMPLATES_DIR).filter(f => f.endsWith('.xlsx'));
+            const equip = (equipment_type || '').toUpperCase();
+            const danger = (dangerous_type || '').toUpperCase().replace(/-/g,'').replace(/\s/g,'');
+            const match = files.find(f => {
+              const name = f.toUpperCase();
+              const equipMatch = name.includes(equip);
+              const dangerMatch = danger.includes('NON') ? name.includes('NON') : name.includes(danger) && !name.includes('NON');
+              return equipMatch && dangerMatch;
+            });
+            if (match) return callback(path.join(TEMPLATES_DIR, match), null);
+          }
+          callback(null, null);
+        }
+      );
+    }
   };
 
-  const templatePath = findTemplate();
+  const templatePath = await new Promise(resolve => findTemplatePath((p) => resolve(p)));
   const safeCustomer = (customer_name || 'CUST').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase().substring(0, 15);
   const safeEquip = (equipment_type || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   const safeDanger = (dangerous_type || '').replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
