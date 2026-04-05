@@ -1,3 +1,6 @@
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
