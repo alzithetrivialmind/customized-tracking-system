@@ -184,6 +184,14 @@ app.delete('/api/customers/:id', authenticateToken, (req, res) => {
   });
 });
 
+app.post('/api/customers/sync', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
+  const { seedCustomers } = require('./database');
+  seedCustomers(req.user.id)
+    .then(() => res.json({ success: true, message: 'Sync completed' }))
+    .catch(err => res.status(500).json({ error: err.message }));
+});
+
 
 // UPDATE SO RECORD — saves old_data + new_data snapshots
 app.put('/api/records/:id', authenticateToken, (req, res) => {

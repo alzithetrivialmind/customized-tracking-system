@@ -266,6 +266,20 @@ const CustomerDatabase = () => {
     setShowForm(true);
   };
 
+  const handleSync = async () => {
+    if (!confirm('Sync all customers from the master list? This will add missing ones and update existing ones.')) return;
+    setLoading(true);
+    try {
+      await api.post('/customers/sync');
+      await load();
+      alert('Master list synchronization successful!');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filtered = customers.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (c.bl_type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -285,6 +299,11 @@ const CustomerDatabase = () => {
           <button className="btn-secondary" onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <RefreshCw size={16} /> Refresh
           </button>
+          {isAdmin && (
+            <button className="btn-secondary" onClick={handleSync} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--brand-green)', color: 'var(--brand-green)' }}>
+              <RefreshCw size={16} /> Sync Master
+            </button>
+          )}
           {isAdmin && (
             <button className="btn-primary" onClick={() => { setEditingCustomer(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Plus size={18} /> Register Customer
