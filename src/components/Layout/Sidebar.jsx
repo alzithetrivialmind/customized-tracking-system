@@ -1,9 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { LayoutDashboard, Clock, CheckCircle, Users, Settings, LogOut, ShieldCheck } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const { user, isAdmin, logout } = useAuth();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDate = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(currentTime);
+
+  const formattedTime = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(currentTime).replace(/\./g, ':');
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { id: 'records', label: 'Ongoing SO', icon: <Clock size={20} /> },
@@ -44,6 +66,22 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         <div>
           <h2 style={{ fontSize: '1.2rem', color: 'white', fontWeight: 'bold', lineHeight: 1 }}>EcoGreen</h2>
           <span style={{ fontSize: '0.7rem', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '1px' }}>Tracking System</span>
+        </div>
+      </div>
+
+      <div style={{
+        background: 'rgba(0,0,0,0.15)',
+        borderRadius: '12px',
+        padding: '1rem',
+        marginBottom: '1.5rem',
+        textAlign: 'center',
+        border: '1px solid rgba(255,255,255,0.05)'
+      }}>
+        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--brand-green)', letterSpacing: '1px', fontFamily: 'monospace' }}>
+          {formattedTime} <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>WIB</span>
+        </div>
+        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: '6px' }}>
+          {formattedDate}
         </div>
       </div>
 

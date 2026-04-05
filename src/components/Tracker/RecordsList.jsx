@@ -269,7 +269,9 @@ const RecordsList = ({ status }) => {
                 <div key={log.id} style={{ padding: '1.5rem', marginBottom: '1.5rem', background: '#f9fbf9', borderRadius: '0 16px 16px 0', borderLeft: `6px solid ${log.action === 'Auto-Update' ? 'var(--warning)' : log.action === 'Completed' ? 'var(--success)' : 'var(--brand-green)'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{ fontWeight: '800', color: 'var(--brand-dark)', fontSize: '0.9rem' }}>{log.action}</span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(log.timestamp).toLocaleString('id-ID')} — <b>{log.modifier_name || log.updated_by || 'System'}</b></span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {new Date(log.timestamp + (!log.timestamp.includes('Z') ? 'Z' : '')).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB — <b>{log.modifier_name || log.updated_by || 'System'}</b>
+                    </span>
                   </div>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '10px', fontStyle: 'italic' }}>Reason: "{log.comment}"</p>
                   {log.old_data && log.new_data && (() => {
