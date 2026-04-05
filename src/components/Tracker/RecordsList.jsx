@@ -340,7 +340,7 @@ const RecordsList = ({ status }) => {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Cargo Category</label>
+                <label style={labelStyle}>Danger Type</label>
                 <select value={editData.dangerousType || ''} onChange={e => setEditData({...editData, dangerousType: e.target.value})} style={inputStyle}>
                   {DANGER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>

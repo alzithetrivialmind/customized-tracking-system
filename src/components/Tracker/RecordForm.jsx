@@ -179,9 +179,9 @@ const RecordForm = ({ onClose }) => {
             </select>
           </div>
 
-          {/* Cargo Category */}
+          {/* Danger Type */}
           <div>
-            <label style={labelStyle}>Cargo Category</label>
+            <label style={labelStyle}>Danger Type</label>
             <select value={formData.dangerous_type} onChange={set('dangerous_type')} style={inputStyle}>
               {cargoCategories.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
             </select>

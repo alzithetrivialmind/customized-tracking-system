@@ -65,7 +65,7 @@ const DashboardHome = ({ setActiveTab }) => {
             Welcome Back, {user?.fullName?.split(' ')[0] || 'User'}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
-            {isAdmin ? 'Monitoring global EcoGreen logistics performance.' : "Here's an overview of your assigned Sales Orders."}
+            {isAdmin ? 'Monitoring progress performance.' : "Here's an overview of your assigned Sales Orders."}
           </p>
         </div>
         {isAdmin && (
@@ -125,7 +125,7 @@ const DashboardHome = ({ setActiveTab }) => {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div className="glass-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '1.8rem' }}>Stock Distribution</h3>
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '1.8rem' }}>Priority Level Distribution</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.8rem' }}>
               <DistributionBar label="High Priority" count={stats.high} total={stats.ongoing} color="var(--error)" />
               <DistributionBar label="Medium Priority" count={stats.medium} total={stats.ongoing} color="var(--warning)" />

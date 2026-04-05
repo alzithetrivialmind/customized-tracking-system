@@ -122,7 +122,7 @@ const TemplateSettings = () => {
       <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '2.2rem', color: 'var(--brand-dark)', marginBottom: '0.4rem' }}>Settings & Repository</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Manage equipment types, cargo categories, and Excel templates.</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Manage equipment types, danger types, and Excel templates.</p>
         </div>
         <button className="btn-secondary" onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <RefreshCw size={16} /> Refresh
@@ -133,7 +133,7 @@ const TemplateSettings = () => {
       <section style={{ marginBottom: '3rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
           <Package size={22} color="var(--brand-dark)" />
-          <h2 style={{ fontSize: '1.4rem', color: 'var(--brand-dark)' }}>Vehicle & Equipment Types</h2>
+          <h2 style={{ fontSize: '1.4rem', color: 'var(--brand-dark)' }}>Equipment Types</h2>
         </div>
         <div className="glass-card" style={{ padding: '2rem' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '1.5rem' }}>
@@ -167,7 +167,7 @@ const TemplateSettings = () => {
       <section style={{ marginBottom: '3rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
           <ShieldAlert size={22} color="var(--brand-dark)" />
-          <h2 style={{ fontSize: '1.4rem', color: 'var(--brand-dark)' }}>Cargo Category / Danger Type</h2>
+          <h2 style={{ fontSize: '1.4rem', color: 'var(--brand-dark)' }}>Danger Type</h2>
         </div>
         <div className="glass-card" style={{ padding: '2rem' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '1.5rem' }}>
@@ -186,7 +186,7 @@ const TemplateSettings = () => {
             <form onSubmit={addCargo} style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text" value={newCargo} onChange={e => setNewCargo(e.target.value)}
-                placeholder="Add new cargo category (e.g. Hazmat)"
+                placeholder="Add new danger type (e.g. Hazmat)"
                 style={inputStyle} required
               />
               <button type="submit" className="btn-primary" style={{ padding: '0 20px', flexShrink: 0 }} disabled={addingCargo}>
@@ -204,7 +204,7 @@ const TemplateSettings = () => {
           <h2 style={{ fontSize: '1.4rem', color: 'var(--brand-dark)' }}>Template Configurations</h2>
         </div>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem', paddingLeft: '34px' }}>
-          Each combination of Equipment × Cargo Category can have its own Excel master template.
+          Each combination of Equipment × Danger Type can have its own Excel master template.
           When generating a report, the system will auto-select the matching template.
         </p>
 
@@ -270,7 +270,7 @@ const TemplateSettings = () => {
 
         {equipTypes.length === 0 || cargoCategories.length === 0 ? (
           <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Add equipment types and cargo categories above to configure templates.
+            Add equipment types and danger types above to configure templates.
           </div>
         ) : null}
       </section>
