@@ -65,7 +65,7 @@ const DashboardHome = ({ setActiveTab }) => {
       <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontSize: '2.2rem', color: 'var(--brand-dark)', marginBottom: '0.5rem' }}>
-            Welcome Back, {profile?.full_name?.split(' ')[0] || 'User'}
+            Welcome Back, {user?.fullName?.split(' ')[0] || 'User'}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
             {isAdmin ? 'Monitoring global EcoGreen logistics performance.' : "Here's an overview of your assigned Sales Orders."}
@@ -142,7 +142,7 @@ const DashboardHome = ({ setActiveTab }) => {
                 <h4 style={{ color: 'var(--brand-green)', fontSize: '0.9rem', textTransform: 'uppercase' }}>User Info</h4>
              </div>
              <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', marginTop: '8px' }}>
-               Logged in as <b>{profile?.full_name}</b> ({profile?.role}).
+               Logged in as <b>{user?.fullName}</b> ({user?.role}).
              </p>
           </div>
         </div>
