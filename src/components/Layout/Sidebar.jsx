@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { LayoutDashboard, Clock, CheckCircle, Users, Settings, LogOut, ShieldCheck } from 'lucide-react';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, isOpen = true }) => {
   const { user, isAdmin, logout } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -36,7 +36,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <div className="sidebar" style={{ 
+    <div className={`sidebar ${isOpen ? 'open' : ''}`} style={{ 
       width: '280px', 
       background: 'var(--sidebar-bg)', 
       height: '100vh', 

@@ -182,7 +182,7 @@ const RecordsList = ({ status }) => {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '2rem' }}>
+      <div className="grid-records-main">
         {filteredRecords.map(record => {
           const soNumber = getField(record, 'soNumber', 'so_number');
           const customerName = getField(record, 'customerName', 'customer_name');
@@ -210,7 +210,7 @@ const RecordsList = ({ status }) => {
                 </button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '1.5rem', marginBottom: '2rem', padding: '1.2rem', background: '#f8fbf9', borderRadius: '14px', border: '1px solid rgba(0,71,55,0.05)' }}>
+              <div className="grid-card-inner" style={{ marginBottom: '2rem', padding: '1.2rem', background: '#f8fbf9', borderRadius: '14px', border: '1px solid rgba(0,71,55,0.05)' }}>
                 <div>
                   <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Equipment</span>
                   <p style={{ fontWeight: '700', marginTop: '4px', fontSize: '1rem', color: 'var(--brand-dark)' }}>
@@ -255,7 +255,7 @@ const RecordsList = ({ status }) => {
       {/* Activity Log Modal */}
       {selectedRecord && (
         <div className="modal-overlay" onClick={() => setSelectedRecord(null)}>
-          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
               <h2>Activity Feed — {getField(selectedRecord, 'soNumber', 'so_number')}</h2>
               <button className="icon-btn" onClick={() => setSelectedRecord(null)}><X size={24} /></button>
@@ -318,7 +318,7 @@ const RecordsList = ({ status }) => {
               <button className="icon-btn" onClick={() => setEditingRecord(null)}><X size={26} /></button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div className="grid-form-2col" style={{ marginBottom: '2rem' }}>
               <div style={{ gridColumn: '1/-1' }}>
                 <label style={labelStyle}>SO Number</label>
                 <input type="text" value={editData.soNumber || ''} onChange={e => setEditData({...editData, soNumber: e.target.value})} style={inputStyle} />

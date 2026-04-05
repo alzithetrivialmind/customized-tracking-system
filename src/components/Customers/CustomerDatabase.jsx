@@ -69,7 +69,7 @@ const CustomerForm = ({ initial, onSave, onClose, tankOptions, onAddTankOption }
             <input type="text" required value={form.name} onChange={set('name')} placeholder="e.g. CRODA EUROPE (UK)" style={inpStyle} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="grid-form-2col">
             {/* B/L Type */}
             <div>
               <label style={lblStyle}>B/L Type</label>

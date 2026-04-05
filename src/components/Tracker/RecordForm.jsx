@@ -140,7 +140,7 @@ const RecordForm = ({ onClose }) => {
           <button className="icon-btn" onClick={onClose}><X size={28} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        <form onSubmit={handleSubmit} className="grid-form-2col">
 
           {/* SO Number */}
           <div style={{ gridColumn: '1/-1' }}>

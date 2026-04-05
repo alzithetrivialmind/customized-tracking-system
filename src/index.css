@@ -149,3 +149,105 @@ h1, h2, h3 {
   background: rgba(0, 40, 31, 0.4);
   backdrop-filter: blur(8px);
 }
+
+/* ── RESPONSIVE UTILITIES ── */
+.grid-responsive-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.grid-dashboard-main {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr;
+  gap: 2rem;
+}
+
+.grid-records-main {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 2rem;
+}
+
+/* Stack internal card columns on very small devices */
+.grid-card-inner {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .grid-dashboard-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Reduce padding on mobile to save space */
+  .glass-card {
+    padding: 1.2rem;
+  }
+
+  /* Main layout margin drops to 0 when sidebar is hidden */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 5.5rem 1rem 2rem !important; /* Top padding leaves room for mobile top-bar */
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Overlay for mobile sidebar */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 40, 31, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 90;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .grid-card-inner {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  
+  /* Modal adjustments */
+  .modal-content {
+    width: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 12px 12px 0 0 !important;
+    margin-top: auto;
+    padding: 1.5rem !important;
+  }
+  
+  h1 { font-size: 1.8rem !important; }
+  h2 { font-size: 1.3rem !important; }
+}
+
+/* Two column layout that stacks on mobile */
+.grid-form-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .grid-form-2col {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}

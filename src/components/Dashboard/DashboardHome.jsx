@@ -75,14 +75,14 @@ const DashboardHome = ({ setActiveTab }) => {
         )}
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+      <div className="grid-responsive-cards" style={{ marginBottom: '2.5rem' }}>
         <StatCard title="Ongoing SO" value={stats.ongoing} icon={<Clock size={24} color="var(--brand-dark)" />} color="var(--brand-green)" onClick={() => setActiveTab('records')} />
         <StatCard title="Due Today" value={stats.today} icon={<TrendingUp size={24} color="#ef6c00" />} color="#ffb74d" onClick={() => setActiveTab('records')} />
         <StatCard title="High Priority" value={stats.high} icon={<AlertCircle size={24} color="#c62828" />} color="var(--error)" onClick={() => setActiveTab('records')} />
         <StatCard title="Completed" value={stats.done} icon={<CheckCircle size={24} color="#2e7d32" />} color="var(--success)" onClick={() => setActiveTab('completed')} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '2rem' }}>
+      <div className="grid-dashboard-main">
         <div className="glass-card" style={{ padding: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <h3 style={{ fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -91,7 +91,7 @@ const DashboardHome = ({ setActiveTab }) => {
           </div>
 
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                   <th style={{ padding: '1rem 0', textAlign: 'left' }}>SO NUMBER</th>
