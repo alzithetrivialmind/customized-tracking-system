@@ -14,7 +14,7 @@ import RecordForm from './RecordForm';
 const EQUIP_TYPES = ['Container', 'Isotank', 'Flexitank'];
 const DANGER_TYPES = ['DG', 'NON-DG'];
 
-const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, handleEditInit, markAsDone, getField }) => {
+const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, handleEditInit, markAsDone, markAsReverted, getField }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: record.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -41,6 +41,11 @@ const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, h
           <span className={`badge ${getPriorityClass(priority)}`} style={{ marginBottom: '10px', display: 'inline-block' }}>
             {priority} {manualPriority && '(Manual)'}
           </span>
+          {record.status === 'reverted' && (
+            <span className="badge" style={{ background: 'var(--error)', color: 'white', marginBottom: '10px', display: 'inline-block', marginLeft: '8px' }}>
+              Reverted
+            </span>
+          )}
           <h3 style={{ fontSize: '1.3rem', color: 'var(--brand-dark)' }}>
             {soNumber} <span style={{ fontWeight: '400', color: 'var(--text-secondary)' }}>/</span> {customerName}
           </h3>
@@ -83,6 +88,11 @@ const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, h
               <CheckCircle size={18} /> Set Completed
             </button>
           </>
+        )}
+        {status === 'done' && (
+          <button className="btn-secondary" style={{ flex: 1.2, padding: '0.7rem', color: 'var(--error)', borderColor: 'rgba(235, 87, 87, 0.3)' }} onClick={() => markAsReverted(record)}>
+            Revert Delivery
+          </button>
         )}
       </div>
     </div>
@@ -178,6 +188,24 @@ const RecordsList = ({ status }) => {
       loadData();
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const markAsReverted = async (record) => {
+    const reason = prompt('Please enter the reason for reverting this SO:');
+    if (reason === null) return; 
+    if (!reason.trim()) {
+      alert('A reason is mandatory to revert a shipment.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post(`/records/${record.id}/status`, { status: 'reverted', comment: reason });
+      loadData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -322,6 +350,7 @@ const RecordsList = ({ status }) => {
                 openLogs={openLogs} 
                 handleEditInit={handleEditInit} 
                 markAsDone={markAsDone} 
+                markAsReverted={markAsReverted}
                 getField={getField} 
               />
             ))}

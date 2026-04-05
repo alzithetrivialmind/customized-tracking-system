@@ -152,7 +152,7 @@ const TemplateSettings = () => {
             <form onSubmit={addEquip} style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text" value={newEquip} onChange={e => setNewEquip(e.target.value)}
-                placeholder="Add new equipment type (e.g. Flexibag)"
+                placeholder="Add new equipment type (e.g. Flexitank)"
                 style={inputStyle} required
               />
               <button type="submit" className="btn-primary" style={{ padding: '0 20px', flexShrink: 0 }} disabled={addingEquip}>

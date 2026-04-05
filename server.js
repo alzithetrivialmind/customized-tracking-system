@@ -79,7 +79,9 @@ app.get('/api/records', authenticateToken, (req, res) => {
   let sql = `SELECT r.* FROM so_records r WHERE r.is_active = 1`;
   let params = [];
 
-  if (status && status !== 'all') {
+  if (status === 'ongoing') {
+    sql += ` AND r.status IN ('ongoing', 'reverted')`;
+  } else if (status && status !== 'all') {
     sql += ` AND r.status = ?`;
     params.push(status);
   }
@@ -232,7 +234,7 @@ app.delete('/api/records/:id', authenticateToken, (req, res) => {
   });
 });
 
-// UPDATE SO STATUS (mark done / reopen)
+// UPDATE SO STATUS (mark done / reopen / revert)
 app.post('/api/records/:id/status', authenticateToken, (req, res) => {
   const { status, comment } = req.body;
   const completedAt = status === 'done' ? new Date().toISOString() : null;
@@ -242,9 +244,14 @@ app.post('/api/records/:id/status', authenticateToken, (req, res) => {
     (err) => {
       if (err) return res.status(500).json({ error: err.message });
       const logId = uuidv4();
+      
+      let actionName = 'Reopened';
+      if (status === 'done') actionName = 'Completed';
+      else if (status === 'reverted') actionName = 'Reverted';
+      
       db.run(
-        `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment) VALUES (?, ?, ?, ?, ?)`,
-        [logId, req.params.id, req.user.id, status === 'done' ? 'Completed' : 'Reopened', comment || `Status set to ${status}.`],
+        `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by) VALUES (?, ?, ?, ?, ?, ?)`,
+        [logId, req.params.id, req.user.id, actionName, comment || `Status set to ${status}.`, req.user.email],
         () => res.json({ success: true })
       );
     }
