@@ -34,13 +34,19 @@ const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, h
       ...style,
       padding: '1.8rem',
       backgroundColor: 'var(--surface-color)',
-      borderTop: `5px solid ${priority === PRIORITY_LEVELS.HIGH ? 'var(--error)' : priority === PRIORITY_LEVELS.MEDIUM ? 'var(--warning)' : 'var(--success)'}`
+      borderTop: `5px solid ${status === 'done' ? 'var(--brand-green)' : priority === PRIORITY_LEVELS.HIGH ? 'var(--error)' : priority === PRIORITY_LEVELS.MEDIUM ? 'var(--warning)' : 'var(--success)'}`
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
         <div>
-          <span className={`badge ${getPriorityClass(priority)}`} style={{ marginBottom: '10px', display: 'inline-block' }}>
-            {priority} {manualPriority && '(Manual)'}
-          </span>
+          {status === 'done' ? (
+            <span className="badge" style={{ background: 'var(--success)', color: 'var(--brand-dark)', marginBottom: '10px', display: 'inline-block' }}>
+              Complete
+            </span>
+          ) : (
+            <span className={`badge ${getPriorityClass(priority)}`} style={{ marginBottom: '10px', display: 'inline-block' }}>
+              {priority} {manualPriority && '(Manual)'}
+            </span>
+          )}
           {record.status === 'reverted' && (
             <span className="badge" style={{ background: 'var(--error)', color: 'white', marginBottom: '10px', display: 'inline-block', marginLeft: '8px' }}>
               Reverted
