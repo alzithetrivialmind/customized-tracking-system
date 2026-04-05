@@ -274,30 +274,74 @@ app.post('/api/users/:id/role', authenticateToken, isAdmin, (req, res) => {
 // 7. EXCEL GENERATION
 app.post('/api/generate-excel', authenticateToken, async (req, res) => {
   const { so_number, customer_name, etd, equipment_type, dangerous_type } = req.body;
-  const templateId = `${equipment_type}_${dangerous_type}`.toUpperCase().replace(/-/g, '_').replace(/ /g, '_');
-  const templatePath = path.join(TEMPLATES_DIR, `${templateId}.xlsx`);
-  const fileName = `SO_${so_number}_${Date.now()}.xlsx`;
+
+  // Smart template finder: scan the templates folder and match by keywords
+  // Handles naming like "CONTAINER - DG.xlsx", "ISOTANK - NON DG.xlsx", etc.
+  const findTemplate = () => {
+    if (!fs.existsSync(TEMPLATES_DIR)) return null;
+    const files = fs.readdirSync(TEMPLATES_DIR).filter(f => f.endsWith('.xlsx'));
+
+    const equip = (equipment_type || '').toUpperCase();
+    const danger = (dangerous_type || '').toUpperCase().replace('-', '').replace(' ', '');
+
+    // Try to find a file whose name contains both the equipment and danger keywords
+    const match = files.find(f => {
+      const name = f.toUpperCase();
+      const equipMatch = name.includes(equip);
+      // "NON-DG" and "NON DG" and "NONDG" should all match "NON DG" in filename
+      const dangerMatch = danger.includes('NON')
+        ? name.includes('NON')
+        : name.includes(danger) && !name.includes('NON');
+      return equipMatch && dangerMatch;
+    });
+
+    return match ? path.join(TEMPLATES_DIR, match) : null;
+  };
+
+  const templatePath = findTemplate();
+  const safeCustomer = (customer_name || 'CUST').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase().substring(0, 15);
+  const safeEquip = (equipment_type || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const safeDanger = (dangerous_type || '').replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
+  const fileName = `SO-${so_number}_${safeCustomer}_${safeEquip}-${safeDanger}.xlsx`;
   const exportPath = path.join(EXPORTS_DIR, fileName);
 
   try {
     const workbook = new ExcelJS.Workbook();
-    const hasTemplate = fs.existsSync(templatePath);
 
-    if (hasTemplate) {
-      // Use the uploaded master template
+    if (templatePath) {
+      // === USE UPLOADED MASTER TEMPLATE ===
       await workbook.xlsx.readFile(templatePath);
       const ws = workbook.getWorksheet(1);
-      ws.insertRow(1, []);
-      ws.insertRow(1, [`Type: ${equipment_type}`, `Category: ${dangerous_type}`, `Generated: ${new Date().toLocaleString()}`]);
-      ws.insertRow(1, [`SO Number: ${so_number}`, `Customer: ${customer_name}`, `ETD: ${etd}`]);
-      ws.insertRow(1, ['EcoGreen SO Report']);
+
+      // Per spec: insert 3 header rows at the very top (Row 1, 2, 3)
+      // insertRow shifts existing content down
+      ws.spliceRows(1, 0,
+        // Row 1: Document title + date
+        ['EcoGreen Oleochemicals — Shipment Document', '', `Document Date: ${dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY')}`],
+        // Row 2: Customer & SO info
+        [`SO Number: ${so_number}`, `Customer: ${customer_name}`, ''],
+        // Row 3: ETD & type info
+        [`ETD: ${etd}`, `Type: ${equipment_type}`, `Category: ${dangerous_type}`],
+      );
+
+      // Style the 3 inserted header rows
+      [1, 2, 3].forEach(rowNum => {
+        const row = ws.getRow(rowNum);
+        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          if (colNum <= 3 && cell.value) {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004737' } };
+            cell.alignment = { vertical: 'middle' };
+          }
+        });
+        row.height = 22;
+      });
+
     } else {
-      // No template uploaded yet — generate a complete report from scratch
+      // === FALLBACK: no template — generate from scratch ===
       workbook.creator = 'EcoGreen Tracking System';
-      workbook.created = new Date();
       const ws = workbook.addWorksheet('SO Report');
 
-      // Header styling
       ws.mergeCells('A1:F1');
       ws.getCell('A1').value = 'ECOGREEN OLEOCHEMICALS — SHIPMENT ORDER REPORT';
       ws.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
@@ -305,45 +349,43 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
       ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
       ws.getRow(1).height = 30;
 
-      ws.getRow(2).values = ['Field', 'Value'];
-      ws.getRow(2).eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FF004737' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
-      });
-
-      const rows = [
+      const fields = [
         ['SO Number', so_number],
         ['Customer Name', customer_name],
         ['ETD Date', etd],
         ['Equipment Type', equipment_type],
         ['Cargo Category', dangerous_type],
-        ['Generated At', new Date().toLocaleString()],
-        ['Generated By', 'EcoGreen Tracking System'],
+        ['Document Date', dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY HH:mm [WIB]')],
       ];
-      rows.forEach((row, i) => {
+      ws.getRow(2).values = ['Field', 'Value'];
+      ws.getRow(2).font = { bold: true, color: { argb: 'FF004737' } };
+      ws.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+      fields.forEach((row, i) => {
         ws.getRow(3 + i).values = row;
-        if (i % 2 === 0) {
-          ws.getRow(3 + i).eachCell(cell => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FBF9' } };
-          });
-        }
       });
-
       ws.getColumn(1).width = 25;
       ws.getColumn(2).width = 40;
-
-      // Note about missing template
-      ws.getRow(12).values = ['NOTE', `No master template uploaded for ${templateId}. Upload via Settings page.`];
-      ws.getCell('A12').font = { italic: true, color: { argb: 'FFFF6600' } };
+      ws.getRow(10).values = ['NOTE', `No master template found for: ${equipment_type} - ${dangerous_type}. Upload via Settings.`];
+      ws.getCell('A10').font = { italic: true, color: { argb: 'FFFF6600' } };
     }
 
     await workbook.xlsx.writeFile(exportPath);
-    res.json({ downloadUrl: `/api/download/${fileName}`, hasTemplate });
+
+    // Save the generated file path to the database
+    db.run(`UPDATE so_records SET generated_excel_path=? WHERE so_number=?`, [exportPath, so_number]);
+
+    res.json({
+      downloadUrl: `/api/download/${fileName}`,
+      fileName,
+      usedTemplate: !!templatePath,
+      templateFile: templatePath ? path.basename(templatePath) : null,
+    });
   } catch (err) {
     console.error('Excel error:', err);
     res.status(500).json({ error: 'Excel generation failed: ' + err.message });
   }
 });
+
 
 
 app.get('/api/download/:filename', (req, res) => {
