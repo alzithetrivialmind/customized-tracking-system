@@ -20,43 +20,45 @@ const DashboardHome = ({ setActiveTab }) => {
 
   const loadStats = async () => {
     setLoading(true);
-    
-    // 1. Fetch All Records for current user (or all if admin)
-    let query = supabase.from('so_records').select('*');
-    if (!isAdmin) query = query.eq('user_id', user.id);
-    
-    const { data: all, error } = await query;
-    if (error) {
-      console.error(error);
+    try {
+      // 1. Fetch All Records for current user (or all if admin)
+      let query = supabase.from('so_records').select('*');
+      if (!isAdmin) query = query.eq('user_id', user.id);
+      
+      const { data: all, error } = await query;
+      if (error) {
+        console.error('Stats fetch error:', error);
+      } else if (all) {
+        const ongoing = all.filter(r => r.status === 'ongoing');
+        const done = all.filter(r => r.status === 'done');
+        
+        // Priority logic
+        const high = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.HIGH);
+        const mdm = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.MEDIUM);
+        const nrm = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.NORMAL);
+        
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayDeliveries = ongoing.filter(r => r.etd === todayStr);
+        
+        const upcoming = ongoing
+          .sort((a, b) => new Date(a.etd) - new Date(b.etd))
+          .slice(0, 5);
+
+        setStats({ 
+          ongoing: ongoing.length, 
+          done: done.length, 
+          high: high.length, 
+          medium: mdm.length,
+          normal: nrm.length,
+          today: todayDeliveries.length,
+          upcoming 
+        });
+      }
+    } catch (err) {
+      console.error('Core dash error:', err);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const ongoing = all.filter(r => r.status === 'ongoing');
-    const done = all.filter(r => r.status === 'done');
-    
-    // Priority logic
-    const high = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.HIGH);
-    const mdm = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.MEDIUM);
-    const nrm = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.NORMAL);
-    
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayDeliveries = ongoing.filter(r => r.etd === todayStr);
-    
-    const upcoming = ongoing
-      .sort((a, b) => new Date(a.etd) - new Date(b.etd))
-      .slice(0, 5);
-
-    setStats({ 
-      ongoing: ongoing.length, 
-      done: done.length, 
-      high: high.length, 
-      medium: mdm.length,
-      normal: nrm.length,
-      today: todayDeliveries.length,
-      upcoming 
-    });
-    setLoading(false);
   };
 
   if (loading) return (
