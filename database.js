@@ -1,9 +1,16 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
 
-// 1. PATH RESOLUTION (Absolute paths for Hostinger/Passenger)
-const DB_PATH = path.join(__dirname, 'database', 'ecogreen.db');
+// 1. PATH RESOLUTION
+const DB_DIR = path.join(__dirname, 'database');
+const DB_PATH = path.join(DB_DIR, 'ecogreen.db');
+
+// Ensure directory exists (Git ignores empty folders)
+if (!fs.existsSync(DB_DIR)) {
+  fs.mkdirSync(DB_DIR, { recursive: true });
+}
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
