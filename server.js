@@ -24,8 +24,8 @@ const PORT = process.env.PORT || 8080;
 // Override any of these via environment variables in hPanel.
 const PERSISTENT_ROOT = process.env.PERSISTENT_ROOT || path.join(__dirname, '..');
 const TEMPLATES_DIR = process.env.TEMPLATES_DIR || path.join(PERSISTENT_ROOT, 'templates');
-const EXPORTS_DIR   = process.env.EXPORTS_DIR   || path.join(PERSISTENT_ROOT, 'exports');
-const UPLOADS_DIR   = process.env.UPLOADS_DIR   || path.join(PERSISTENT_ROOT, 'uploads');
+const EXPORTS_DIR = process.env.EXPORTS_DIR || path.join(PERSISTENT_ROOT, 'exports');
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(PERSISTENT_ROOT, 'uploads');
 
 // Auto-create all persistent directories on startup
 [TEMPLATES_DIR, EXPORTS_DIR, UPLOADS_DIR].forEach(dir => {
@@ -127,7 +127,7 @@ app.post('/api/records', authenticateToken, (req, res) => {
       db.run(
         `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by, new_data) VALUES (?,?,?,?,?,?,?)`,
         [logId, id, req.user.id, 'Created', 'Initial SO entry added.', req.user.fullName || req.user.email,
-         JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes })],
+          JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes })],
         () => res.json({ id, success: true })
       );
     }
@@ -211,9 +211,9 @@ app.put('/api/records/:id', authenticateToken, (req, res) => {
         db.run(
           `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?,?)`,
           [logId, req.params.id, req.user.id, 'Manual-Update', comment,
-           JSON.stringify({ so_number: old.so_number, customer_name: old.customer_name, etd: old.etd, equipment_type: old.equipment_type, dangerous_type: old.dangerous_type, manual_priority: old.manual_priority }),
-           JSON.stringify({ so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority }),
-           req.user.email],
+            JSON.stringify({ so_number: old.so_number, customer_name: old.customer_name, etd: old.etd, equipment_type: old.equipment_type, dangerous_type: old.dangerous_type, manual_priority: old.manual_priority }),
+            JSON.stringify({ so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority }),
+            req.user.email],
           () => res.json({ success: true })
         );
       }
@@ -397,21 +397,39 @@ app.post('/api/admin/create-user', authenticateToken, isAdmin, async (req, res) 
   const { email, fullName, password, role } = req.body;
   const id = uuidv4();
   const hashedPassword = await bcrypt.hash(password, 10);
-  
+
   db.run(`INSERT INTO profiles (id, email, password, full_name, role, force_password_change) 
-          VALUES (?, ?, ?, ?, ?, ?)`, 
-          [id, email, hashedPassword, fullName, role, 1], (err) => {
-    if (err) {
-      if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Email already exists.' });
-      return res.status(500).json({ error: err.message });
-    }
-    res.json({ id, success: true });
-  });
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, email, hashedPassword, fullName, role, 1], (err) => {
+      if (err) {
+        if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Email already exists.' });
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id, success: true });
+    });
 });
 
 app.post('/api/users/:id/role', authenticateToken, isAdmin, (req, res) => {
   const { role } = req.body;
   db.run(`UPDATE profiles SET role = ? WHERE id = ?`, [role, req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// User Preferences (Drag and Drop sorting)
+app.get('/api/preferences', authenticateToken, (req, res) => {
+  db.get(`SELECT so_sort_preference FROM profiles WHERE id = ?`, [req.user.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ soOrder: row?.so_sort_preference ? JSON.parse(row.so_sort_preference) : [] });
+  });
+});
+
+app.put('/api/preferences', authenticateToken, (req, res) => {
+  const { soOrder } = req.body;
+  if (!Array.isArray(soOrder)) return res.status(400).json({ error: 'soOrder must be an array' });
+  
+  db.run(`UPDATE profiles SET so_sort_preference = ? WHERE id = ?`, [JSON.stringify(soOrder), req.user.id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
   });
@@ -449,7 +467,7 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
           if (fs.existsSync(TEMPLATES_DIR)) {
             const files = fs.readdirSync(TEMPLATES_DIR).filter(f => f.endsWith('.xlsx'));
             const equip = (equipment_type || '').toUpperCase();
-            const danger = (dangerous_type || '').toUpperCase().replace(/-/g,'').replace(/\s/g,'');
+            const danger = (dangerous_type || '').toUpperCase().replace(/-/g, '').replace(/\s/g, '');
             const match = files.find(f => {
               const name = f.toUpperCase();
               const equipMatch = name.includes(equip);
@@ -482,17 +500,17 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
       // Build 9 header rows: Indicator (col A) | Value (col B)
       const docDate = dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY');
       const headerRows = [
-        ['Document Date',        docDate],
-        ['SO Number',            so_number || '-'],
-        ['Customer',             customer_name || '-'],
-        ['ETD',                  etd || '-'],
-        ['Equipment Type',       equipment_type || '-'],
-        ['Cargo Category',       dangerous_type || '-'],
-        ['B/L Type',             customerInfo.bl_type || '-'],
-        ['Combine B/L',          customerInfo.combine_bl || '-'],
+        ['Document Date', docDate],
+        ['SO Number', so_number || '-'],
+        ['Customer', customer_name || '-'],
+        ['ETD', etd || '-'],
+        ['Equipment Type', equipment_type || '-'],
+        ['Cargo Category', dangerous_type || '-'],
+        ['B/L Type', customerInfo.bl_type || '-'],
+        ['Combine B/L', customerInfo.combine_bl || '-'],
         ['Shipping Mark on B/L', customerInfo.shipping_mark_on_bl || '-'],
-        ['Tank Requirement',     customerInfo.tank_requirement || '-'],
-        ['Other Requirement',    customerInfo.other_requirement || '-'],
+        ['Tank Requirement', customerInfo.tank_requirement || '-'],
+        ['Other Requirement', customerInfo.other_requirement || '-'],
       ];
 
       // Insert header rows at top; existing content shifts down
@@ -540,17 +558,17 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
       // All 9 info rows
       const docDate = dayjs().tz('Asia/Jakarta').format('DD MMMM YYYY HH:mm [WIB]');
       const infoRows = [
-        ['Document Date',        docDate],
-        ['SO Number',            so_number || '-'],
-        ['Customer',             customer_name || '-'],
-        ['ETD',                  etd || '-'],
-        ['Equipment Type',       equipment_type || '-'],
-        ['Cargo Category',       dangerous_type || '-'],
-        ['B/L Type',             customerInfo.bl_type || '-'],
-        ['Combine B/L',          customerInfo.combine_bl || '-'],
+        ['Document Date', docDate],
+        ['SO Number', so_number || '-'],
+        ['Customer', customer_name || '-'],
+        ['ETD', etd || '-'],
+        ['Equipment Type', equipment_type || '-'],
+        ['Cargo Category', dangerous_type || '-'],
+        ['B/L Type', customerInfo.bl_type || '-'],
+        ['Combine B/L', customerInfo.combine_bl || '-'],
         ['Shipping Mark on B/L', customerInfo.shipping_mark_on_bl || '-'],
-        ['Tank Requirement',     customerInfo.tank_requirement || '-'],
-        ['Other Requirement',    customerInfo.other_requirement || '-'],
+        ['Tank Requirement', customerInfo.tank_requirement || '-'],
+        ['Other Requirement', customerInfo.other_requirement || '-'],
       ];
 
       infoRows.forEach((row, i) => {
@@ -581,8 +599,15 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
     // Save the generated file path to the database
     db.run(`UPDATE so_records SET generated_excel_path=? WHERE so_number=?`, [exportPath, so_number]);
 
+    // Generate short-lived (24h) token for signed URL
+    const downloadToken = require('jsonwebtoken').sign(
+      { role: req.user.role, id: req.user.id },
+      JWT_SECRET || 'ecogreen-tracking-system-secret-key-2026',
+      { expiresIn: '24h' }
+    );
+
     res.json({
-      downloadUrl: `/api/download/${fileName}`,
+      downloadUrl: `/api/download/${fileName}?token=${downloadToken}`,
       fileName,
       usedTemplate: !!templatePath,
       templateFile: templatePath ? path.basename(templatePath) : null,
@@ -595,10 +620,28 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
 
 
 
-app.get('/api/download/:filename', (req, res) => {
-  const filePath = path.join(EXPORTS_DIR, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found.' });
-  res.download(filePath);
+app.get('/api/download/:filename', authenticateToken, (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(EXPORTS_DIR, filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('File not found');
+  }
+
+  res.download(filePath, filename, (err) => {
+    if (err) {
+      console.error('Download error:', err.message);
+      if (!res.headersSent) {
+        res.status(500).send('Error downloading file');
+      }
+    }
+  });
+});
+
+// DEFAULT ERROR HANDLER (Avoid Stack Trace Leaks)
+app.use((err, req, res, next) => {
+  console.error('System Error:', err.stack);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 // ─── CATCH-ALL FRONTEND ROUTING ───────────────────────────────────────────────
@@ -627,10 +670,10 @@ const runPriorityUpdate = () => {
           const logId = uuidv4();
           db.run(`INSERT INTO shipment_logs (id, so_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?)`,
             [logId, row.id, 'Auto-Update',
-             `Priority auto-updated by system scheduler`,
-             JSON.stringify({ priority: oldPriority }),
-             JSON.stringify({ priority: newPriority }),
-             'System (Cron)'
+              `Priority auto-updated by system scheduler`,
+              JSON.stringify({ priority: oldPriority }),
+              JSON.stringify({ priority: newPriority }),
+              'System (Cron)'
             ]);
           console.log(`[Cron] SO ${row.so_number}: ${oldPriority} → ${newPriority}`);
         }

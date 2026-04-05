@@ -112,6 +112,7 @@ const initDb = async () => {
         full_name TEXT,
         role TEXT DEFAULT 'user',
         force_password_change INTEGER DEFAULT 1,
+        so_sort_preference TEXT DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
@@ -260,6 +261,9 @@ const migrateDb = () => {
   addColumn('so_records', 'generated_excel_path', 'TEXT DEFAULT NULL');
   addColumn('so_records', 'notes', 'TEXT DEFAULT NULL');
   addColumn('so_records', 'template_config_id', 'TEXT DEFAULT NULL');
+
+  // profiles: user preferences
+  addColumn('profiles', 'so_sort_preference', 'TEXT DEFAULT NULL');
 
   // shipment_logs: old/new data snapshots + updated_by
   addColumn('shipment_logs', 'old_data', 'TEXT DEFAULT NULL');

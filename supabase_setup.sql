@@ -7,10 +7,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 2. CREATE TABLES
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
   full_name TEXT,
-  role TEXT DEFAULT 'user' CHECK (role IN ('admin', 'user')),
-  force_password_change BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  force_password_change BOOLEAN DEFAULT true,
+  so_sort_preference TEXT DEFAULT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS public.customers (
