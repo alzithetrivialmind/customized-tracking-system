@@ -9,9 +9,19 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety Timeout: Force stop loading after 5 seconds if Supabase hangs
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Auth initialization timed out. Forcing stop loading.');
+        setLoading(false);
+      }
+    }, 5000);
+
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
         if (session) {
           setUser(session.user);
           await fetchProfile(session.user.id);
@@ -20,6 +30,7 @@ export const AuthProvider = ({ children }) => {
         console.error('Session check failed:', err);
       } finally {
         setLoading(false);
+        clearTimeout(timeout);
       }
     };
 
@@ -38,10 +49,14 @@ export const AuthProvider = ({ children }) => {
         console.error('Auth state change error:', err);
       } finally {
         setLoading(false);
+        clearTimeout(timeout);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const fetchProfile = async (uid) => {
