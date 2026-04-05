@@ -3,11 +3,15 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 
-// 1. PATH RESOLUTION
-const DB_DIR = path.join(__dirname, 'database');
-const DB_PATH = path.join(DB_DIR, 'ecogreen.db');
+// DB_PATH must live OUTSIDE the project/nodejs folder so it survives re-deployments.
+// Priority: 1. DB_PATH env var  2. One level up from __dirname (parent of nodejs/)
+const DB_DIR = process.env.DB_PATH
+  ? path.dirname(process.env.DB_PATH)
+  : path.join(__dirname, '..', 'data');   // e.g. .../domains/.../data/
 
-// Ensure directory exists (Git ignores empty folders)
+const DB_PATH = process.env.DB_PATH || path.join(DB_DIR, 'ecogreen.db');
+
+// Ensure the directory exists
 if (!fs.existsSync(DB_DIR)) {
   fs.mkdirSync(DB_DIR, { recursive: true });
 }

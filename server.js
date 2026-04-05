@@ -14,11 +14,15 @@ const { authenticateToken, isAdmin, JWT_SECRET } = require('./auth');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-const TEMPLATES_DIR = path.join(__dirname, 'templates');
-const EXPORTS_DIR = path.join(__dirname, 'exports');
+// Persistent dirs: stored ONE LEVEL ABOVE project root so Git deploys never wipe them.
+// Override any of these via environment variables in hPanel.
+const PERSISTENT_ROOT = process.env.PERSISTENT_ROOT || path.join(__dirname, '..');
+const TEMPLATES_DIR = process.env.TEMPLATES_DIR || path.join(PERSISTENT_ROOT, 'templates');
+const EXPORTS_DIR   = process.env.EXPORTS_DIR   || path.join(PERSISTENT_ROOT, 'exports');
+const UPLOADS_DIR   = process.env.UPLOADS_DIR   || path.join(PERSISTENT_ROOT, 'uploads');
 
-// Auto-create required directories
-[TEMPLATES_DIR, EXPORTS_DIR, path.join(__dirname, 'uploads')].forEach(dir => {
+// Auto-create all persistent directories on startup
+[TEMPLATES_DIR, EXPORTS_DIR, UPLOADS_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
