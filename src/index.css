@@ -1,0 +1,151 @@
+:root {
+  /* Brand Colors from Logo */
+  --brand-green: #60e318;
+  --brand-dark: #004737;
+  --brand-text: #1a2e2a;
+  
+  /* Light Theme Palette */
+  --bg-color: #f4f7f6;
+  --surface-color: #ffffff;
+  --sidebar-bg: #004737;
+  --sidebar-text: #ffffff;
+  
+  /* Status Colors (Professional Light) */
+  --error: #e53935;
+  --warning: #fb8c00;
+  --success: #43a047;
+  --accent-green: #60e318;
+  
+  /* UI Helpers */
+  --border-color: #e0e6e4;
+  --text-primary: #1a2e2a;
+  --text-secondary: #5e716e;
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --shadow-sm: 0 2px 8px rgba(0, 71, 55, 0.05);
+  --shadow-md: 0 8px 24px rgba(0, 71, 55, 0.08);
+  --transition-fast: 0.2s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* Base Layout Components */
+.glass-card {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.glass-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Typography Enhancements */
+h1, h2, h3 {
+  color: var(--brand-dark);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Button & Interactives */
+.btn-primary {
+  background: var(--brand-green);
+  color: var(--brand-dark);
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  background: #52c414;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(96, 227, 24, 0.3);
+}
+
+.btn-secondary {
+  background: rgba(0, 71, 55, 0.05);
+  color: var(--brand-dark);
+  border: 1px solid rgba(0, 71, 55, 0.1);
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 71, 55, 0.1);
+  border-color: var(--brand-green);
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: rgba(96, 227, 24, 0.1);
+  color: var(--brand-dark);
+}
+
+/* Badges (Light Variant) */
+.badge {
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-high { background: rgba(229, 57, 53, 0.1); color: #c62828; border: 1px solid rgba(229, 57, 53, 0.2); }
+.badge-medium { background: rgba(251, 140, 0, 0.1); color: #ef6c00; border: 1px solid rgba(251, 140, 0, 0.2); }
+.badge-normal { background: rgba(67, 160, 71, 0.1); color: #2e7d32; border: 1px solid rgba(67, 160, 71, 0.2); }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px;}
+::-webkit-scrollbar-track { background: var(--bg-color); }
+::-webkit-scrollbar-thumb { background: rgba(0, 71, 55, 0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 71, 55, 0.2); }
+
+/* Utility Classes */
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-overlay {
+  background: rgba(0, 40, 31, 0.4);
+  backdrop-filter: blur(8px);
+}
