@@ -19,9 +19,9 @@ export const generateExcelWithHeaders = async (templateBlob, record) => {
   const originalJson = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
   
   const headers = [
-    ['Document Created Date:', record.createdAt || new Date().toISOString().split('T')[0]],
-    ['Customer Name:', record.customerName],
-    ['ETD Date (Shipment):', record.etd],
+    [null, null, `Document Created Date: ${record.createdAt || new Date().toISOString().split('T')[0]}`],
+    [null, null, `Customer Name: ${record.customerName}`],
+    [null, null, `ETD Date (Shipment): ${record.etd}`],
     [], // Empty row separator
   ];
 

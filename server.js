@@ -531,23 +531,22 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
         const rowNum = i + 1;
         const row = ws.getRow(rowNum);
         const isFirst = i === 0;
-        // Column A — Indicator
-        const cellA = ws.getCell(`A${rowNum}`);
-        cellA.value = headerRows[i][0];
-        cellA.font = { bold: true, color: { argb: WHITE }, size: 10 };
-        cellA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
-        cellA.alignment = { vertical: 'middle', wrapText: false };
-        // Column B — Value
-        const cellB = ws.getCell(`B${rowNum}`);
-        cellB.value = headerRows[i][1];
-        cellB.font = { bold: isFirst, color: { argb: isFirst ? WHITE : 'FF1A1A1A' }, size: 10 };
-        cellB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFirst ? DARK : LIGHT } };
-        cellB.alignment = { vertical: 'middle', wrapText: true };
+        
+        // Ensure A and B are empty
+        ws.getCell(`A${rowNum}`).value = null;
+        ws.getCell(`B${rowNum}`).value = null;
+
+        // Column C — Combined Value
+        const cellC = ws.getCell(`C${rowNum}`);
+        cellC.value = `${headerRows[i][0]}: ${headerRows[i][1]}`;
+        cellC.font = { bold: true, color: { argb: isFirst ? WHITE : 'FF1A1A1A' }, size: 10 };
+        cellC.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isFirst ? DARK : LIGHT } };
+        cellC.alignment = { vertical: 'middle', wrapText: true };
+        
         row.height = 18;
       });
       // Ensure col widths look good
-      ws.getColumn('A').width = Math.max(ws.getColumn('A').width || 0, 26);
-      ws.getColumn('B').width = Math.max(ws.getColumn('B').width || 0, 50);
+      ws.getColumn('C').width = Math.max(ws.getColumn('C').width || 0, 75);
 
     } else {
       // === FALLBACK: no template — generate from scratch ===
@@ -555,7 +554,7 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
       const ws = workbook.addWorksheet('SO Report');
 
       // Title banner
-      ws.mergeCells('A1:B1');
+      ws.mergeCells('A1:C1');
       ws.getCell('A1').value = 'ECOGREEN OLEOCHEMICALS — SHIPMENT ORDER REPORT';
       ws.getCell('A1').font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
       ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004737' } };
@@ -581,18 +580,16 @@ app.post('/api/generate-excel', authenticateToken, async (req, res) => {
       infoRows.forEach((row, i) => {
         const rowNum = 2 + i;
         const ws_row = ws.getRow(rowNum);
-        ws.getCell(`A${rowNum}`).value = row[0];
-        ws.getCell(`A${rowNum}`).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-        ws.getCell(`A${rowNum}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004737' } };
-        ws.getCell(`A${rowNum}`).alignment = { vertical: 'middle' };
-        ws.getCell(`B${rowNum}`).value = row[1];
-        ws.getCell(`B${rowNum}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
-        ws.getCell(`B${rowNum}`).alignment = { vertical: 'middle', wrapText: true };
+        
+        ws.getCell(`C${rowNum}`).value = `${row[0]}: ${row[1]}`;
+        ws.getCell(`C${rowNum}`).font = { bold: true, color: { argb: 'FF1A1A1A' }, size: 10 };
+        ws.getCell(`C${rowNum}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+        ws.getCell(`C${rowNum}`).alignment = { vertical: 'middle', wrapText: true };
+        
         ws_row.height = 18;
       });
 
-      ws.getColumn(1).width = 26;
-      ws.getColumn(2).width = 55;
+      ws.getColumn(3).width = 75;
 
       const noteRow = 2 + infoRows.length + 1;
       ws.getCell(`A${noteRow}`).value = 'NOTE';

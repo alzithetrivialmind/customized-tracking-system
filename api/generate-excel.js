@@ -30,9 +30,10 @@ export default async function handler(req, res) {
     const worksheet = workbook.getWorksheet(1);
 
     // 4. Inject Metadata (Prepend 4 Rows)
-    worksheet.insertRow(1, ['GENERATED REPORT - ECOGREEN SO TRACKING']);
-    worksheet.insertRow(2, [`SO Number: ${soNumber}`, `Customer: ${customerName}`, `ETD: ${etd}`]);
-    worksheet.insertRow(3, [`Type: ${equipmentType}`, `Category: ${dangerousType}`, `Generated At: ${new Date().toLocaleString()}`]);
+    // Using empty strings for columns A and B so the data goes into Column C.
+    worksheet.insertRow(1, ['', '', 'GENERATED REPORT - ECOGREEN SO TRACKING']);
+    worksheet.insertRow(2, ['', '', `SO Number: ${soNumber} | Customer: ${customerName} | ETD: ${etd}`]);
+    worksheet.insertRow(3, ['', '', `Type: ${equipmentType} | Category: ${dangerousType} | Generated At: ${new Date().toLocaleString()}`]);
     worksheet.insertRow(4, []); // Empty spacing row
 
     // Styling the first row
