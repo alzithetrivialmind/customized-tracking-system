@@ -73,7 +73,8 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   });
 });
 
-// 3. TRACKING ROUTES (SO Records)
+app.get('/api/records', authenticateToken, (req, res) => {
+  const { status } = req.query;
   let sql = `SELECT r.*, l.name as lsp_name 
              FROM so_records r 
              LEFT JOIN lsps l ON r.lsp_id = l.id 
