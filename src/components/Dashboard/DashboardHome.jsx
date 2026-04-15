@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { calculatePriority, PRIORITY_LEVELS } from '../../logic/priority';
 import { 
   LayoutDashboard, Clock, AlertCircle, CheckCircle, 
-  TrendingUp, BarChart3, Loader2, Users 
+  TrendingUp, BarChart3, Loader2, Users, Truck
 } from 'lucide-react';
 
 const DashboardHome = ({ setActiveTab }) => {
