@@ -26,9 +26,9 @@ const DashboardHome = ({ setActiveTab }) => {
         api.get('/records?status=done'),
       ]);
 
-      const high = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.HIGH);
-      const mdm  = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.MEDIUM);
-      const nrm  = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.NORMAL);
+      const high = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.HIGH.id);
+      const mdm  = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.MEDIUM.id);
+      const nrm  = ongoing.filter(r => calculatePriority(r) === PRIORITY_LEVELS.NORMAL.id);
 
       const todayStr = new Date().toISOString().split('T')[0];
       const todayDeliveries = ongoing.filter(r => r.etd === todayStr);
@@ -77,7 +77,7 @@ const DashboardHome = ({ setActiveTab }) => {
 
       <div className="grid-responsive-cards" style={{ marginBottom: '2.5rem' }}>
         <StatCard title="Ongoing SO" value={stats.ongoing} icon={<Clock size={24} color="var(--brand-dark)" />} color="var(--brand-green)" onClick={() => setActiveTab('records')} />
-        <StatCard title="Due Today" value={stats.today} icon={<TrendingUp size={24} color="#ef6c00" />} color="#ffb74d" onClick={() => setActiveTab('records')} />
+        <StatCard title="Need to Aware" value={stats.today} icon={<TrendingUp size={24} color="#ef6c00" />} color="#ffb74d" onClick={() => setActiveTab('records')} />
         <StatCard title="High Priority" value={stats.high} icon={<AlertCircle size={24} color="#c62828" />} color="var(--error)" onClick={() => setActiveTab('records')} />
         <StatCard title="Completed" value={stats.done} icon={<CheckCircle size={24} color="#2e7d32" />} color="var(--success)" onClick={() => setActiveTab('completed')} />
       </div>
@@ -107,8 +107,8 @@ const DashboardHome = ({ setActiveTab }) => {
                     <td style={{ padding: '1.2rem 0', color: 'var(--text-primary)' }}>{item.customer_name}</td>
                     <td style={{ padding: '1.2rem 0', color: 'var(--text-secondary)' }}>{item.etd}</td>
                     <td style={{ padding: '1.2rem 0', textAlign: 'right' }}>
-                      <span className={`badge ${calculatePriority(item) === PRIORITY_LEVELS.HIGH ? 'badge-high' : calculatePriority(item) === PRIORITY_LEVELS.MEDIUM ? 'badge-medium' : 'badge-normal'}`}>
-                        {calculatePriority(item)}
+                      <span className={`badge ${calculatePriority(item) === PRIORITY_LEVELS.HIGH.id ? 'badge-high' : calculatePriority(item) === PRIORITY_LEVELS.MEDIUM.id ? 'badge-medium' : 'badge-normal'}`}>
+                        {calculatePriority(item) === PRIORITY_LEVELS.MEDIUM.id ? 'NEED TO AWARE' : calculatePriority(item)}
                       </span>
                     </td>
                   </tr>
@@ -128,7 +128,7 @@ const DashboardHome = ({ setActiveTab }) => {
             <h3 style={{ fontSize: '1.3rem', marginBottom: '1.8rem' }}>Priority Level Distribution</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.8rem' }}>
               <DistributionBar label="High Priority" count={stats.high} total={stats.ongoing} color="var(--error)" />
-              <DistributionBar label="Medium Priority" count={stats.medium} total={stats.ongoing} color="var(--warning)" />
+              <DistributionBar label="Need to Aware" count={stats.medium} total={stats.ongoing} color="var(--warning)" />
               <DistributionBar label="Normal Priority" count={stats.normal} total={stats.ongoing} color="var(--success)" />
             </div>
           </div>
