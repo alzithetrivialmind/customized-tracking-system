@@ -258,8 +258,8 @@ const RecordsList = ({ status }) => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(r => 
-        r.so_number?.toLowerCase().includes(term) ||
-        r.customer_name?.toLowerCase().includes(term) ||
+        (r.so_number || '').toLowerCase().includes(term) ||
+        (r.customer_name || '').toLowerCase().includes(term) ||
         (r.lsp_name || '').toLowerCase().includes(term)
       );
     }
