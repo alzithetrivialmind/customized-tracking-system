@@ -14,7 +14,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { CSS } from '@dnd-kit/utilities';
 import { 
   Plus, Download, CheckCircle, Search,
-  Edit3, Paperclip, X, Save, AlertTriangle, History, Loader2, GripVertical, Truck, Send, ClipboardCheck
+  Edit3, Paperclip, X, Save, AlertTriangle, History, Loader2, GripVertical, Truck, Send, ClipboardCheck, FileSpreadsheet
 } from 'lucide-react';
 import RecordForm from './RecordForm';
 
