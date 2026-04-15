@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -7,14 +7,15 @@ import {
   PRIORITY_LEVELS,
   calculateSIPriority,
   getSIPriorityClass,
-  getSIPriorityLabel
+  getSIPriorityLabel,
+  calculateUrgencyScore
 } from '../../logic/priority';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { 
-  Plus, Download, CheckCircle, Search,
-  Edit3, Paperclip, X, Save, AlertTriangle, History, Loader2, GripVertical, Truck, Send, ClipboardCheck, FileSpreadsheet
+  Edit3, Paperclip, X, Save, AlertTriangle, History, Loader2, GripVertical, Truck, Send, ClipboardCheck, FileSpreadsheet,
+  ArrowUpDown, Filter, Layers, List
 } from 'lucide-react';
 import RecordForm from './RecordForm';
 
@@ -196,6 +197,11 @@ const RecordsList = ({ status }) => {
   const [editMeta, setEditMeta] = useState({ comment: '', attachment: null });
   const [isExporting, setIsExporting] = useState(null);
 
+  // Sorting and Grouping State
+  const [sortBy, setBy] = useState('created_at'); // created_at, urgency, etd, po_date, sc_deadline, si_deadline_submit, so_number
+  const [sortOrder, setOrder] = useState('desc'); // asc, desc
+  const [groupBy, setGroup] = useState('none'); // none, lsp_name, customer_name, equipment_type, dangerous_type
+
   useEffect(() => {
     if (user) {
       loadData();
@@ -244,8 +250,56 @@ const RecordsList = ({ status }) => {
     }
   };
 
-  // SQLite returns snake_case — helper to normalise
-  const getField = (record, camel, snake) => record[camel] ?? record[snake] ?? '';
+  // ── ADVANCED DATA PROCESSING ──
+  const processedRecords = useMemo(() => {
+    let result = [...records];
+
+    // 1. FILTER by Search Term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(r => 
+        r.so_number?.toLowerCase().includes(term) ||
+        r.customer_name?.toLowerCase().includes(term) ||
+        (r.lsp_name || '').toLowerCase().includes(term)
+      );
+    }
+
+    // 2. SORTING
+    result.sort((a, b) => {
+      let valA, valB;
+
+      switch (sortBy) {
+        case 'urgency':
+          valA = calculateUrgencyScore(a);
+          valB = calculateUrgencyScore(b);
+          break;
+        case 'so_number':
+          valA = a.so_number;
+          valB = b.so_number;
+          break;
+        default: // Dates
+          valA = a[sortBy] || '0';
+          valB = b[sortBy] || '0';
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    // 3. GROUPING
+    if (groupBy !== 'none') {
+      const groups = {};
+      result.forEach(r => {
+        const key = r[groupBy] || 'Uncategorized';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(r);
+      });
+      return groups;
+    }
+
+    return result;
+  }, [records, searchTerm, sortBy, sortOrder, groupBy]);
 
   const handleExport = async (record) => {
     setIsExporting(record.id);
@@ -356,27 +410,13 @@ const RecordsList = ({ status }) => {
     }
   };
 
-  const sortedRecords = [...records].sort((a, b) => {
-    if (status !== 'ongoing' || soOrder.length === 0) return 0;
-    const idxA = soOrder.indexOf(a.id);
-    const idxB = soOrder.indexOf(b.id);
-    if (idxA === -1 && idxB === -1) return 0;
-    if (idxA === -1) return 1;
-    if (idxB === -1) return -1;
-    return idxA - idxB;
-  });
-
-  const filteredRecords = sortedRecords.filter(r => {
-    const soNum = getField(r, 'soNumber', 'so_number').toLowerCase();
-    const custName = getField(r, 'customerName', 'customer_name').toLowerCase();
-    const term = searchTerm.toLowerCase();
-    return soNum.includes(term) || custName.includes(term);
-  });
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  // Helper to normalize snake_case from DB
+  const getField = (record, camel, snake) => record[camel] ?? record[snake] ?? '';
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
@@ -420,44 +460,120 @@ const RecordsList = ({ status }) => {
         )}
       </div>
 
-      <div className="glass-card" style={{ marginBottom: '2.5rem', display: 'flex', gap: '1rem', alignItems: 'center', background: '#e0e6e454' }}>
-        <Search size={18} style={{ position: 'relative', color: 'var(--text-secondary)' }} />
-        <input
-          type="text"
-          placeholder="Search SO Number or Customer Name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '1rem', padding: '0.5rem 0' }}
-        />
+      <div className="list-toolbar">
+        <div className="toolbar-group" style={{ flex: 1, minWidth: '240px' }}>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} size={18} />
+            <input 
+              type="text" 
+              placeholder="Search by SO, Customer, or LSP..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ padding: '0.6rem 1rem 0.6rem 2.5rem', width: '100%', borderRadius: '10px', border: '1px solid var(--border-color)', outline: 'none', background: 'transparent' }}
+            />
+          </div>
+        </div>
+
+        <div className="toolbar-group">
+          <ArrowUpDown size={16} color="var(--text-secondary)" />
+          <span className="toolbar-label">Sort By</span>
+          <select className="toolbar-select" value={sortBy} onChange={(e) => setBy(e.target.value)}>
+            <option value="created_at">Order Added</option>
+            <option value="urgency">Overall Urgency</option>
+            <option value="so_number">SO Number</option>
+            <option value="etd">ETD Shipment</option>
+            <option value="po_date">PO Received</option>
+            <option value="sc_deadline">SC Deadline</option>
+            <option value="si_deadline_submit">SI Submission</option>
+          </select>
+          <button 
+            className="icon-btn" 
+            style={{ fontWeight: '800', fontSize: '0.75rem', width: '45px' }}
+            onClick={() => setOrder(o => o === 'asc' ? 'desc' : 'asc')}
+            title="Toggle Sort Order"
+          >
+            {sortOrder === 'asc' ? 'ASC' : 'DESC'}
+          </button>
+        </div>
+
+        <div className="toolbar-group">
+          <Layers size={16} color="var(--text-secondary)" />
+          <span className="toolbar-label">Group By</span>
+          <select className="toolbar-select" value={groupBy} onChange={(e) => setGroup(e.target.value)}>
+            <option value="none">None (List)</option>
+            <option value="customer_name">Customer</option>
+            <option value="lsp_name">Logistic Partner</option>
+            <option value="equipment_type">Equipment Type</option>
+            <option value="dangerous_type">DG Category</option>
+          </select>
+        </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={filteredRecords.map(r => r.id)} strategy={verticalListSortingStrategy}>
-          <div className="grid-records-main">
-            {filteredRecords.map(record => (
-              <SortableRecord 
-                key={record.id} 
-                record={record} 
-                status={status} 
-                handleExport={handleExport} 
-                isExporting={isExporting} 
-                openLogs={openLogs} 
-                handleEditInit={handleEditInit} 
-                markAsDone={markAsDone} 
-                markAsReverted={markAsReverted}
-                getField={getField} 
-              />
-            ))}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '4rem' }}>
+          <Loader2 className="spinner" size={48} color="var(--brand-green)" />
+          <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Loading records...</p>
+        </div>
+      ) : (groupBy === 'none' ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext 
+            items={(Array.isArray(processedRecords) ? processedRecords : []).map(r => r.id)} 
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid-records-main">
+              {processedRecords.map(record => (
+                <SortableRecord 
+                  key={record.id} 
+                  record={record} 
+                  status={status} 
+                  handleExport={handleExport}
+                  isExporting={isExporting}
+                  openLogs={openLogs}
+                  handleEditInit={handleEditInit}
+                  markAsDone={markAsDone}
+                  markAsReverted={markAsReverted}
+                  getField={getField}
+                />
+              ))}
 
-            {filteredRecords.length === 0 && (
-              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '6rem', color: 'var(--text-secondary)' }}>
-                <AlertTriangle size={56} style={{ marginBottom: '1.5rem', opacity: 0.2 }} />
-                <p style={{ fontSize: '1.1rem' }}>No {status} shipments currently recorded.</p>
+              {processedRecords.length === 0 && (
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem' }}>
+                  <AlertTriangle size={48} style={{ opacity: 0.1, marginBottom: '1rem' }} />
+                  <p style={{ color: 'var(--text-secondary)' }}>No matching records found.</p>
+                </div>
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {Object.entries(processedRecords).map(([groupName, groupRecords]) => (
+            <div key={groupName} className="fade-in" style={{ marginBottom: '1rem' }}>
+              <div className="group-header">
+                {groupBy === 'lsp_name' ? <Truck size={20} /> : <Layers size={20} />}
+                <h2 className="group-title">{groupName}</h2>
+                <span className="group-count">{groupRecords.length} Items</span>
               </div>
-            )}
-          </div>
-        </SortableContext>
-      </DndContext>
+              <div className="grid-records-main">
+                {groupRecords.map(record => (
+                  <SortableRecord 
+                    key={record.id} 
+                    record={record} 
+                    status={status} 
+                    handleExport={handleExport}
+                    isExporting={isExporting}
+                    openLogs={openLogs}
+                    handleEditInit={handleEditInit}
+                    markAsDone={markAsDone}
+                    markAsReverted={markAsReverted}
+                    getField={getField}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
 
       {showForm && <RecordForm onClose={() => { setShowForm(false); loadData(); }} />}
 
