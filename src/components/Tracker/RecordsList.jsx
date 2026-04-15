@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { calculatePriority, getPriorityClass, PRIORITY_LEVELS } from '../../logic/priority';
+import { 
+  calculatePriority, 
+  getPriorityClass, 
+  PRIORITY_LEVELS,
+  calculateSIPriority,
+  getSIPriorityClass,
+  getSIPriorityLabel
+} from '../../logic/priority';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -95,12 +102,24 @@ const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, h
             <div>
               <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>SI Submission Deadline</span>
               <div style={{ marginTop: '2px' }}>
-                <p style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Send size={12} color="var(--text-secondary)" /> <b>Submit:</b> {record.si_deadline_submit ? new Date(record.si_deadline_submit).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
-                </p>
-                <p style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                  <ClipboardCheck size={12} color="var(--text-secondary)" /> <b>Confirm:</b> {record.si_deadline_confirm ? new Date(record.si_deadline_confirm).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
-                </p>
+                <div style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Send size={12} color="var(--text-secondary)" /> 
+                  <b>Submit:</b> {record.si_deadline_submit ? new Date(record.si_deadline_submit).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                  {record.si_deadline_submit && (
+                    <span className={`si-badge ${getSIPriorityClass(calculateSIPriority(record.si_deadline_submit))}`}>
+                      {getSIPriorityLabel(calculateSIPriority(record.si_deadline_submit))}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                  <ClipboardCheck size={12} color="var(--text-secondary)" /> 
+                  <b>Confirm:</b> {record.si_deadline_confirm ? new Date(record.si_deadline_confirm).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                  {record.si_deadline_confirm && (
+                    <span className={`si-badge ${getSIPriorityClass(calculateSIPriority(record.si_deadline_confirm))}`}>
+                      {getSIPriorityLabel(calculateSIPriority(record.si_deadline_confirm))}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>

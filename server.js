@@ -132,7 +132,10 @@ app.post('/api/records', authenticateToken, (req, res) => {
         `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by, new_data) VALUES (?,?,?,?,?,?,?)`,
         [logId, id, req.user.id, 'Created', 'Initial SO entry added.', req.user.fullName || req.user.email,
           JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes, lsp_id, si_deadline_submit, si_deadline_confirm })],
-        () => res.json({ id, success: true })
+        (logErr) => {
+          if (logErr) return res.status(500).json({ error: logErr.message });
+          res.json({ id, success: true });
+        }
       );
     }
   );

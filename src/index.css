@@ -130,6 +130,21 @@ h1, h2, h3 {
 .badge-medium { background: rgba(251, 140, 0, 0.1); color: #ef6c00; border: 1px solid rgba(251, 140, 0, 0.2); }
 .badge-normal { background: rgba(67, 160, 71, 0.1); color: #2e7d32; border: 1px solid rgba(67, 160, 71, 0.2); }
 
+.si-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.si-badge-high { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.si-badge-aware { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+.si-badge-normal { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px;}
 ::-webkit-scrollbar-track { background: var(--bg-color); }
