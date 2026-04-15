@@ -7,7 +7,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { CSS } from '@dnd-kit/utilities';
 import { 
   Plus, Download, CheckCircle, Search,
-  Edit3, Paperclip, X, Save, AlertTriangle, History, Loader2, GripVertical
+  Edit3, Paperclip, X, Save, AlertTriangle, History, Loader2, GripVertical, Truck, Send, ClipboardCheck
 } from 'lucide-react';
 import RecordForm from './RecordForm';
 
@@ -81,6 +81,32 @@ const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, h
         </div>
       </div>
 
+      {(record.lsp_name || record.si_deadline_submit || record.si_deadline_confirm) && (
+        <div style={{ marginBottom: '2rem', padding: '1.2rem', background: '#eef3f1', borderRadius: '14px', border: '1px solid rgba(0,71,55,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <Truck size={16} color="var(--brand-green)" />
+            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--brand-dark)', textTransform: 'uppercase' }}>SI Submission Tracking</span>
+          </div>
+          <div className="grid-card-inner" style={{ gap: '1.5rem' }}>
+            <div>
+              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Logistic Partner (LSP)</span>
+              <p style={{ fontWeight: '700', marginTop: '2px', fontSize: '0.95rem', color: 'var(--brand-dark)' }}>{record.lsp_name || '—'}</p>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>SI Submission Deadline</span>
+              <div style={{ marginTop: '2px' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Send size={12} color="var(--text-secondary)" /> <b>Submit:</b> {record.si_deadline_submit ? new Date(record.si_deadline_submit).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                </p>
+                <p style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                  <ClipboardCheck size={12} color="var(--text-secondary)" /> <b>Confirm:</b> {record.si_deadline_confirm ? new Date(record.si_deadline_confirm).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '12px' }}>
         <button className="btn-secondary" style={{ flex: 1, padding: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => openLogs(record)}>
           <History size={18} /> Logs
@@ -109,6 +135,7 @@ const RecordsList = ({ status }) => {
   const { user, isAdmin } = useAuth();
   const [records, setRecords] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [lsps, setLsps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [soOrder, setSoOrder] = useState([]);
   
@@ -143,8 +170,12 @@ const RecordsList = ({ status }) => {
     try {
       const recs = await api.get(`/records?status=${status}`);
       setRecords(recs);
-      const custs = await api.get('/customers');
+      const [custs, lspData] = await Promise.all([
+        api.get('/customers'),
+        api.get('/lsps')
+      ]);
       setCustomers(custs.map(c => c.name));
+      setLsps(lspData);
     } catch (err) {
       console.error('Fetch failed:', err.message);
     } finally {
@@ -224,6 +255,9 @@ const RecordsList = ({ status }) => {
       equipmentType: getField(record, 'equipmentType', 'equipment_type'),
       dangerousType: getField(record, 'dangerousType', 'dangerous_type'),
       manualPriority: getField(record, 'manualPriority', 'manual_priority') || '',
+      lsp_id: record.lsp_id || '',
+      si_deadline_submit: record.si_deadline_submit || '',
+      si_deadline_confirm: record.si_deadline_confirm || '',
     });
     setEditMeta({ comment: '', attachment: null });
   };
@@ -242,6 +276,9 @@ const RecordsList = ({ status }) => {
         equipment_type: editData.equipmentType,
         dangerous_type: editData.dangerousType,
         manual_priority: editData.manualPriority || null,
+        lsp_id: editData.lsp_id || null,
+        si_deadline_submit: editData.si_deadline_submit || null,
+        si_deadline_confirm: editData.si_deadline_confirm || null,
         comment: editMeta.comment,
       });
       setEditingRecord(null);
@@ -475,6 +512,39 @@ const RecordsList = ({ status }) => {
                   <option value={PRIORITY_LEVELS.NORMAL}>Normal Priority (Manual Override)</option>
                 </select>
               </div>
+              
+              <div style={{ gridColumn: '1/-1', borderTop: '2px solid #f0f4f3', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+                  <Truck size={18} color="var(--brand-green)" />
+                  <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Shipping Instructions (SI) Details</h3>
+                </div>
+                <label style={labelStyle}>Logistics Partner (LSP)</label>
+                <select value={editData.lsp_id || ''} onChange={e => setEditData({...editData, lsp_id: e.target.value})} style={inputStyle}>
+                  <option value="">Select Logistic Partner...</option>
+                  {lsps.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>SI Deadline: To Submit</label>
+                <input 
+                  type="datetime-local" 
+                  value={editData.si_deadline_submit || ''} 
+                  onChange={e => setEditData({...editData, si_deadline_submit: e.target.value})} 
+                  style={inputStyle} 
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>SI Deadline: To Confirm</label>
+                <input 
+                  type="datetime-local" 
+                  value={editData.si_deadline_confirm || ''} 
+                  onChange={e => setEditData({...editData, si_deadline_confirm: e.target.value})} 
+                  style={inputStyle} 
+                />
+              </div>
+
               <div style={{ gridColumn: '1/-1', borderTop: '2px solid #f0f4f3', paddingTop: '1.5rem' }}>
                 <label style={{ ...labelStyle, color: 'var(--brand-dark)' }}>Reason for Modification (Mandatory) *</label>
                 <textarea

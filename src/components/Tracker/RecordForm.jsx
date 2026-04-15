@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { X, Calendar, Save, UserPlus, Loader2, FileSpreadsheet, CheckCircle, AlertCircle, StickyNote } from 'lucide-react';
+import { X, Calendar, Save, UserPlus, Loader2, FileSpreadsheet, CheckCircle, AlertCircle, StickyNote, Truck, Send, ClipboardCheck } from 'lucide-react';
 
 const RecordForm = ({ onClose }) => {
   const { user } = useAuth();
@@ -9,6 +9,7 @@ const RecordForm = ({ onClose }) => {
   const [equipTypes, setEquipTypes] = useState([]);
   const [cargoCategories, setCargoCategories] = useState([]);
   const [templateConfigs, setTemplateConfigs] = useState([]);
+  const [lsps, setLsps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [metaLoading, setMetaLoading] = useState(true);
 
@@ -19,6 +20,9 @@ const RecordForm = ({ onClose }) => {
     dangerous_type: '',
     etd: '',
     notes: '',
+    lsp_id: '',
+    si_deadline_submit: '',
+    si_deadline_confirm: '',
   });
 
   // Auto-selected template config based on equipment + cargo selection
@@ -59,16 +63,18 @@ const RecordForm = ({ onClose }) => {
   const loadMetadata = async () => {
     setMetaLoading(true);
     try {
-      const [custs, equip, cargo, configs] = await Promise.all([
+      const [custs, equip, cargo, configs, lspData] = await Promise.all([
         api.get('/customers'),
         api.get('/equipment-types'),
         api.get('/cargo-categories'),
         api.get('/template-configs'),
+        api.get('/lsps'),
       ]);
       setCustomers(custs);
       setEquipTypes(equip);
       setCargoCategories(cargo);
       setTemplateConfigs(configs);
+      setLsps(lspData);
       // Set defaults
       if (equip.length > 0) setFormData(f => ({ ...f, equipment_type: equip[0].name }));
       if (cargo.length > 0) setFormData(f => ({ ...f, dangerous_type: cargo[0].name }));
@@ -185,6 +191,44 @@ const RecordForm = ({ onClose }) => {
             <select value={formData.dangerous_type} onChange={set('dangerous_type')} style={inputStyle}>
               {cargoCategories.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
             </select>
+          </div>
+
+          {/* LSP Selection */}
+          <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+              <Truck size={18} color="var(--brand-green)" />
+              <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Shipping Instructions (SI) Submission</h3>
+            </div>
+            <label style={labelStyle}>Logistics Partner (LSP) *</label>
+            <select required value={formData.lsp_id} onChange={set('lsp_id')} style={inputStyle}>
+              <option value="">Select Logistic Partner...</option>
+              {lsps.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </div>
+
+          {/* SI Deadlines */}
+          <div>
+            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Send size={14} /> SI Deadline: To Submit
+            </label>
+            <input 
+              type="datetime-local" 
+              value={formData.si_deadline_submit} 
+              onChange={set('si_deadline_submit')} 
+              style={inputStyle} 
+            />
+          </div>
+
+          <div>
+            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ClipboardCheck size={14} /> SI Deadline: To Confirm
+            </label>
+            <input 
+              type="datetime-local" 
+              value={formData.si_deadline_confirm} 
+              onChange={set('si_deadline_confirm')} 
+              style={inputStyle} 
+            />
           </div>
 
           {/* Template Selection */}

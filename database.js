@@ -146,6 +146,15 @@ const initDb = async () => {
         FOREIGN KEY (user_id) REFERENCES profiles (id)
       )`);
 
+      // LSPS (Logistic Services Providers)
+      db.run(`CREATE TABLE IF NOT EXISTS lsps (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES profiles (id)
+      )`);
+
       // SHIPMENT LOGS
       db.run(`CREATE TABLE IF NOT EXISTS shipment_logs (
         id TEXT PRIMARY KEY,
@@ -261,6 +270,9 @@ const migrateDb = () => {
   addColumn('so_records', 'generated_excel_path', 'TEXT DEFAULT NULL');
   addColumn('so_records', 'notes', 'TEXT DEFAULT NULL');
   addColumn('so_records', 'template_config_id', 'TEXT DEFAULT NULL');
+  addColumn('so_records', 'lsp_id', 'TEXT DEFAULT NULL');
+  addColumn('so_records', 'si_deadline_submit', 'DATETIME DEFAULT NULL');
+  addColumn('so_records', 'si_deadline_confirm', 'DATETIME DEFAULT NULL');
 
   // profiles: user preferences
   addColumn('profiles', 'so_sort_preference', 'TEXT DEFAULT NULL');

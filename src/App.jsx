@@ -8,6 +8,7 @@ import RecordsList from './components/Tracker/RecordsList';
 import CustomerDatabase from './components/Customers/CustomerDatabase';
 import TemplateSettings from './components/Settings/TemplateSettings';
 import UserManagement from './components/Admin/UserManagement';
+import LSPDatabase from './components/LSPs/LSPDatabase';
 import { Loader2 } from 'lucide-react';
 
 const AppContent = () => {
@@ -38,6 +39,7 @@ const AppContent = () => {
       case 'records': return <RecordsList status="ongoing" />;
       case 'completed': return <RecordsList status="done" />;
       case 'customers': return <CustomerDatabase />;
+      case 'lsps': return <LSPDatabase />;
       case 'settings': return <TemplateSettings />;
       case 'users': return <UserManagement />;
       default: return <DashboardHome setActiveTab={setActiveTab} />;

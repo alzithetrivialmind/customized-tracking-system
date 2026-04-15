@@ -74,9 +74,10 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 });
 
 // 3. TRACKING ROUTES (SO Records)
-app.get('/api/records', authenticateToken, (req, res) => {
-  const { status } = req.query;
-  let sql = `SELECT r.* FROM so_records r WHERE r.is_active = 1`;
+  let sql = `SELECT r.*, l.name as lsp_name 
+             FROM so_records r 
+             LEFT JOIN lsps l ON r.lsp_id = l.id 
+             WHERE r.is_active = 1`;
   let params = [];
 
   if (status === 'ongoing') {
@@ -114,12 +115,12 @@ app.get('/api/records/:id/logs', authenticateToken, (req, res) => {
 });
 
 app.post('/api/records', authenticateToken, (req, res) => {
-  const { so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id } = req.body;
+  const { so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id, lsp_id, si_deadline_submit, si_deadline_confirm } = req.body;
   if (!so_number || !customer_name || !etd) return res.status(400).json({ error: 'so_number, customer_name, and etd are required.' });
   const id = uuidv4();
   db.run(
-    `INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id, is_active) VALUES (?,?,?,?,?,?,?,?,?,1)`,
-    [id, req.user.id, so_number, customer_name, equipment_type || '', dangerous_type || '', etd, notes || null, template_config_id || null],
+    `INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id, lsp_id, si_deadline_submit, si_deadline_confirm, is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1)`,
+    [id, req.user.id, so_number, customer_name, equipment_type || '', dangerous_type || '', etd, notes || null, template_config_id || null, lsp_id || null, si_deadline_submit || null, si_deadline_confirm || null],
     (err) => {
       if (err) {
         if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'SO Number already exists.' });
@@ -129,7 +130,7 @@ app.post('/api/records', authenticateToken, (req, res) => {
       db.run(
         `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by, new_data) VALUES (?,?,?,?,?,?,?)`,
         [logId, id, req.user.id, 'Created', 'Initial SO entry added.', req.user.fullName || req.user.email,
-          JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes })],
+          JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes, lsp_id, si_deadline_submit, si_deadline_confirm })],
         () => res.json({ id, success: true })
       );
     }
@@ -194,10 +195,54 @@ app.post('/api/customers/sync', authenticateToken, (req, res) => {
     .catch(err => res.status(500).json({ error: err.message }));
 });
 
+// 5. LSP ROUTES
+app.get('/api/lsps', authenticateToken, (req, res) => {
+  db.all(`SELECT * FROM lsps ORDER BY name ASC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/lsps', authenticateToken, (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'LSP name is required.' });
+  const id = uuidv4();
+  db.run(
+    `INSERT INTO lsps (id, user_id, name) VALUES (?, ?, ?)`,
+    [id, req.user.id, name.trim()],
+    (err) => {
+      if (err) {
+        if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'LSP already exists.' });
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ id, success: true });
+    }
+  );
+});
+
+app.put('/api/lsps/:id', authenticateToken, (req, res) => {
+  const { name } = req.body;
+  db.run(
+    `UPDATE lsps SET name=? WHERE id=?`,
+    [name.trim(), req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+app.delete('/api/lsps/:id', authenticateToken, (req, res) => {
+  db.run(`DELETE FROM lsps WHERE id = ?`, [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
 
 // UPDATE SO RECORD — saves old_data + new_data snapshots
 app.put('/api/records/:id', authenticateToken, (req, res) => {
-  const { so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority, comment } = req.body;
+  const { so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority, comment, lsp_id, si_deadline_submit, si_deadline_confirm } = req.body;
   if (!comment) return res.status(400).json({ error: 'Reason for change (comment) is mandatory.' });
 
   // Fetch old record first for audit snapshot
@@ -205,16 +250,16 @@ app.put('/api/records/:id', authenticateToken, (req, res) => {
     if (err || !old) return res.status(404).json({ error: 'Record not found.' });
 
     db.run(
-      `UPDATE so_records SET so_number=?, customer_name=?, etd=?, equipment_type=?, dangerous_type=?, manual_priority=? WHERE id=?`,
-      [so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority || null, req.params.id],
+      `UPDATE so_records SET so_number=?, customer_name=?, etd=?, equipment_type=?, dangerous_type=?, manual_priority=?, lsp_id=?, si_deadline_submit=?, si_deadline_confirm=? WHERE id=?`,
+      [so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority || null, lsp_id || null, si_deadline_submit || null, si_deadline_confirm || null, req.params.id],
       (err2) => {
         if (err2) return res.status(500).json({ error: err2.message });
         const logId = uuidv4();
         db.run(
           `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?,?)`,
           [logId, req.params.id, req.user.id, 'Manual-Update', comment,
-            JSON.stringify({ so_number: old.so_number, customer_name: old.customer_name, etd: old.etd, equipment_type: old.equipment_type, dangerous_type: old.dangerous_type, manual_priority: old.manual_priority }),
-            JSON.stringify({ so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority }),
+            JSON.stringify({ so_number: old.so_number, customer_name: old.customer_name, etd: old.etd, equipment_type: old.equipment_type, dangerous_type: old.dangerous_type, manual_priority: old.manual_priority, lsp_id: old.lsp_id, si_deadline_submit: old.si_deadline_submit, si_deadline_confirm: old.si_deadline_confirm }),
+            JSON.stringify({ so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority, lsp_id, si_deadline_submit, si_deadline_confirm }),
             req.user.email],
           () => res.json({ success: true })
         );

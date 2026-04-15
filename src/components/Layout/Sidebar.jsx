@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Clock, CheckCircle, Users, Settings, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Clock, CheckCircle, Users, Settings, LogOut, ShieldCheck, Truck } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, isOpen = true }) => {
   const { user, isAdmin, logout } = useAuth();
@@ -31,6 +31,7 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen = true }) => {
     { id: 'records', label: 'Ongoing SO', icon: <Clock size={20} /> },
     { id: 'completed', label: 'Completed SO', icon: <CheckCircle size={20} /> },
     { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
+    { id: 'lsps', label: 'Logistics Partners', icon: <Truck size={20} /> },
     { id: 'settings', label: 'Settings & Templates', icon: <Settings size={20} /> },
     ...(isAdmin ? [{ id: 'users', label: 'User Management', icon: <ShieldCheck size={20} /> }] : []),
   ];
