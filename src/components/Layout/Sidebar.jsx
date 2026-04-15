@@ -28,8 +28,10 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen = true }) => {
   }).format(currentTime).replace(/\./g, ':');
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'records', label: 'Ongoing SO', icon: <Clock size={20} /> },
-    { id: 'completed', label: 'Completed SO', icon: <CheckCircle size={20} /> },
+    { id: 'records', label: 'Ongoing SO (Shipment)', icon: <Clock size={20} /> },
+    { id: 'sc-tracking', label: 'SC (Sales Contract)', icon: <LayoutDashboard size={20} /> },
+    { id: 'si-tracking', label: 'SI (Shipping Instructions)', icon: <Truck size={20} /> },
+    { id: 'completed', label: 'Completed Deliveries', icon: <CheckCircle size={20} /> },
     { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
     { id: 'lsps', label: 'Logistics Partners', icon: <Truck size={20} /> },
     { id: 'settings', label: 'Settings & Templates', icon: <Settings size={20} /> },

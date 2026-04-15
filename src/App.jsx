@@ -5,6 +5,8 @@ import ForcePasswordChange from './components/Auth/ForcePasswordChange';
 import MainLayout from './components/Layout/MainLayout';
 import DashboardHome from './components/Dashboard/DashboardHome';
 import RecordsList from './components/Tracker/RecordsList';
+import SCTracker from './components/Tracker/SCTracker';
+import SITracker from './components/Tracker/SITracker';
 import CustomerDatabase from './components/Customers/CustomerDatabase';
 import TemplateSettings from './components/Settings/TemplateSettings';
 import UserManagement from './components/Admin/UserManagement';
@@ -37,6 +39,8 @@ const AppContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardHome setActiveTab={setActiveTab} />;
       case 'records': return <RecordsList status="ongoing" />;
+      case 'sc-tracking': return <SCTracker />;
+      case 'si-tracking': return <SITracker />;
       case 'completed': return <RecordsList status="done" />;
       case 'customers': return <CustomerDatabase />;
       case 'lsps': return <LSPDatabase />;

@@ -21,11 +21,6 @@ const RecordForm = ({ onClose }) => {
     dangerous_type: '',
     etd: '',
     notes: '',
-    lsp_id: '',
-    si_deadline_submit: '',
-    si_deadline_confirm: '',
-    po_date: '',
-    sc_deadline: '',
   });
 
   // Auto-selected template config based on equipment + cargo selection
@@ -123,20 +118,6 @@ const RecordForm = ({ onClose }) => {
 
   const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
 
-  // Handle PO Date change to auto-calculate SC Deadline
-  useEffect(() => {
-    if (formData.po_date) {
-      let deadline = dayjs(formData.po_date);
-      let added = 0;
-      while (added < 4) {
-        deadline = deadline.add(1, 'day');
-        if (deadline.day() !== 0 && deadline.day() !== 6) {
-          added++;
-        }
-      }
-      setFormData(f => ({ ...f, sc_deadline: deadline.format('YYYY-MM-DD') }));
-    }
-  }, [formData.po_date]);
 
   // Find what template would be used if user overrides
   const effectiveTemplate = templateOverride
@@ -211,60 +192,6 @@ const RecordForm = ({ onClose }) => {
             </select>
           </div>
 
-          <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-              <FileSpreadsheet size={18} color="var(--brand-green)" />
-              <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Contract & PO Tracking</h3>
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>PO Date (Received)</label>
-            <input type="date" value={formData.po_date} onChange={set('po_date')} style={inputStyle} />
-          </div>
-
-          <div>
-            <label style={labelStyle}>SC Deadline (+4 Business Days)</label>
-            <input type="date" value={formData.sc_deadline} onChange={set('sc_deadline')} style={inputStyle} />
-          </div>
-
-          {/* LSP Selection */}
-          <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-              <Truck size={18} color="var(--brand-green)" />
-              <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Shipping Instructions (SI) Submission</h3>
-            </div>
-            <label style={labelStyle}>Logistics Partner (LSP) *</label>
-            <select required value={formData.lsp_id} onChange={set('lsp_id')} style={inputStyle}>
-              <option value="">Select Logistic Partner...</option>
-              {lsps.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </div>
-
-          {/* SI Deadlines */}
-          <div>
-            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Send size={14} /> SI Deadline: To Submit
-            </label>
-            <input 
-              type="datetime-local" 
-              value={formData.si_deadline_submit} 
-              onChange={set('si_deadline_submit')} 
-              style={inputStyle} 
-            />
-          </div>
-
-          <div>
-            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ClipboardCheck size={14} /> SI Deadline: To Confirm
-            </label>
-            <input 
-              type="datetime-local" 
-              value={formData.si_deadline_confirm} 
-              onChange={set('si_deadline_confirm')} 
-              style={inputStyle} 
-            />
-          </div>
 
           {/* Template Selection */}
           <div style={{ gridColumn: '1/-1', background: effectiveTemplate?.file_exists ? 'rgba(0,150,100,0.06)' : 'rgba(0,0,0,0.03)', borderRadius: '14px', padding: '1.2rem 1.5rem', border: `1px solid ${effectiveTemplate?.file_exists ? 'rgba(0,150,100,0.2)' : 'var(--border-color)'}` }}>

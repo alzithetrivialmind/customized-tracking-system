@@ -275,6 +275,8 @@ const migrateDb = () => {
   addColumn('so_records', 'si_deadline_confirm', 'DATETIME DEFAULT NULL');
   addColumn('so_records', 'po_date', 'DATE DEFAULT NULL');
   addColumn('so_records', 'sc_deadline', 'DATE DEFAULT NULL');
+  addColumn('so_records', 'sc_status', "TEXT DEFAULT 'pending'");
+  addColumn('so_records', 'si_status', "TEXT DEFAULT 'pending'");
 
   // profiles: user preferences
   addColumn('profiles', 'so_sort_preference', 'TEXT DEFAULT NULL');

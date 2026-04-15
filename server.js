@@ -116,12 +116,12 @@ app.get('/api/records/:id/logs', authenticateToken, (req, res) => {
 });
 
 app.post('/api/records', authenticateToken, (req, res) => {
-  const { so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id, lsp_id, si_deadline_submit, si_deadline_confirm, po_date, sc_deadline } = req.body;
+  const { so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id } = req.body;
   if (!so_number || !customer_name || !etd) return res.status(400).json({ error: 'so_number, customer_name, and etd are required.' });
   const id = uuidv4();
   db.run(
-    `INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id, lsp_id, si_deadline_submit, si_deadline_confirm, po_date, sc_deadline, is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`,
-    [id, req.user.id, so_number, customer_name, equipment_type || '', dangerous_type || '', etd, notes || null, template_config_id || null, lsp_id || null, si_deadline_submit || null, si_deadline_confirm || null, po_date || null, sc_deadline || null],
+    `INSERT INTO so_records (id, user_id, so_number, customer_name, equipment_type, dangerous_type, etd, notes, template_config_id, is_active, sc_status, si_status) VALUES (?,?,?,?,?,?,?,?,?,1,'pending','pending')`,
+    [id, req.user.id, so_number, customer_name, equipment_type || '', dangerous_type || '', etd, notes || null, template_config_id || null],
     (err) => {
       if (err) {
         if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'SO Number already exists.' });
@@ -131,7 +131,7 @@ app.post('/api/records', authenticateToken, (req, res) => {
       db.run(
         `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, updated_by, new_data) VALUES (?,?,?,?,?,?,?)`,
         [logId, id, req.user.id, 'Created', 'Initial SO entry added.', req.user.fullName || req.user.email,
-          JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes, lsp_id, si_deadline_submit, si_deadline_confirm, po_date, sc_deadline })],
+          JSON.stringify({ so_number, customer_name, equipment_type, dangerous_type, etd, notes })],
         (logErr) => {
           if (logErr) return res.status(500).json({ error: logErr.message });
           res.json({ id, success: true });
@@ -244,26 +244,79 @@ app.delete('/api/lsps/:id', authenticateToken, (req, res) => {
 });
 
 
-// UPDATE SO RECORD — saves old_data + new_data snapshots
+// UPDATE SO RECORD (Master Component)
 app.put('/api/records/:id', authenticateToken, (req, res) => {
-  const { so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority, comment, lsp_id, si_deadline_submit, si_deadline_confirm, po_date, sc_deadline } = req.body;
+  const { so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority, comment } = req.body;
   if (!comment) return res.status(400).json({ error: 'Reason for change (comment) is mandatory.' });
 
-  // Fetch old record first for audit snapshot
   db.get(`SELECT * FROM so_records WHERE id=?`, [req.params.id], (err, old) => {
     if (err || !old) return res.status(404).json({ error: 'Record not found.' });
 
     db.run(
-      `UPDATE so_records SET so_number=?, customer_name=?, etd=?, equipment_type=?, dangerous_type=?, manual_priority=?, lsp_id=?, si_deadline_submit=?, si_deadline_confirm=?, po_date=?, sc_deadline=? WHERE id=?`,
-      [so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority || null, lsp_id || null, si_deadline_submit || null, si_deadline_confirm || null, po_date || null, sc_deadline || null, req.params.id],
+      `UPDATE so_records SET so_number=?, customer_name=?, etd=?, equipment_type=?, dangerous_type=?, manual_priority=? WHERE id=?`,
+      [so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority || null, req.params.id],
       (err2) => {
         if (err2) return res.status(500).json({ error: err2.message });
         const logId = uuidv4();
         db.run(
           `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?,?)`,
-          [logId, req.params.id, req.user.id, 'Manual-Update', comment,
-            JSON.stringify({ so_number: old.so_number, customer_name: old.customer_name, etd: old.etd, equipment_type: old.equipment_type, dangerous_type: old.dangerous_type, manual_priority: old.manual_priority, lsp_id: old.lsp_id, si_deadline_submit: old.si_deadline_submit, si_deadline_confirm: old.si_deadline_confirm, po_date: old.po_date, sc_deadline: old.sc_deadline }),
-            JSON.stringify({ so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority, lsp_id, si_deadline_submit, si_deadline_confirm, po_date, sc_deadline }),
+          [logId, req.params.id, req.user.id, 'SO-Update', comment,
+            JSON.stringify({ so_number: old.so_number, customer_name: old.customer_name, etd: old.etd, equipment_type: old.equipment_type, dangerous_type: old.dangerous_type, manual_priority: old.manual_priority }),
+            JSON.stringify({ so_number, customer_name, etd, equipment_type, dangerous_type, manual_priority }),
+            req.user.email],
+          () => res.json({ success: true })
+        );
+      }
+    );
+  });
+});
+
+// UPDATE SC MODULE
+app.put('/api/records/:id/sc', authenticateToken, (req, res) => {
+  const { po_date, sc_deadline, sc_status, comment } = req.body;
+  if (!comment) return res.status(400).json({ error: 'Reason for change (comment) is mandatory.' });
+
+  db.get(`SELECT * FROM so_records WHERE id=?`, [req.params.id], (err, old) => {
+    if (err || !old) return res.status(404).json({ error: 'Record not found.' });
+
+    db.run(
+      `UPDATE so_records SET po_date=?, sc_deadline=?, sc_status=? WHERE id=?`,
+      [po_date || null, sc_deadline || null, sc_status || 'pending', req.params.id],
+      (err2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        const logId = uuidv4();
+        db.run(
+          `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?,?)`,
+          [logId, req.params.id, req.user.id, 'SC-Update', comment,
+            JSON.stringify({ po_date: old.po_date, sc_deadline: old.sc_deadline, sc_status: old.sc_status }),
+            JSON.stringify({ po_date, sc_deadline, sc_status }),
+            req.user.email],
+          () => res.json({ success: true })
+        );
+      }
+    );
+  });
+});
+
+// UPDATE SI MODULE
+app.put('/api/records/:id/si', authenticateToken, (req, res) => {
+  const { lsp_id, si_deadline_submit, si_deadline_confirm, si_status, comment } = req.body;
+  if (!comment) return res.status(400).json({ error: 'Reason for change (comment) is mandatory.' });
+
+  db.get(`SELECT * FROM so_records WHERE id=?`, [req.params.id], (err, old) => {
+    if (err || !old) return res.status(404).json({ error: 'Record not found.' });
+
+    db.run(
+      `UPDATE so_records SET lsp_id=?, si_deadline_submit=?, si_deadline_confirm=?, si_status=? WHERE id=?`,
+      [lsp_id || null, si_deadline_submit || null, si_deadline_confirm || null, si_status || 'pending', req.params.id],
+      (err2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        const logId = uuidv4();
+        db.run(
+          `INSERT INTO shipment_logs (id, so_id, modifier_id, action, comment, old_data, new_data, updated_by) VALUES (?,?,?,?,?,?,?,?)`,
+          [logId, req.params.id, req.user.id, 'SI-Update', comment,
+            JSON.stringify({ lsp_id: old.lsp_id, si_deadline_submit: old.si_deadline_submit, si_deadline_confirm: old.si_deadline_confirm, si_status: old.si_status }),
+            JSON.stringify({ lsp_id, si_deadline_submit, si_deadline_confirm, si_status }),
             req.user.email],
           () => res.json({ success: true })
         );

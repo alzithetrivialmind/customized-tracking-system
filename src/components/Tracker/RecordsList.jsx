@@ -90,71 +90,24 @@ const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, h
         </div>
       </div>
 
-      {(record.lsp_name || record.si_deadline_submit || record.si_deadline_confirm) && (
-        <div style={{ marginBottom: '2rem', padding: '1.2rem', background: '#eef3f1', borderRadius: '14px', border: '1px solid rgba(0,71,55,0.1)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <Truck size={16} color="var(--brand-green)" />
-            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--brand-dark)', textTransform: 'uppercase' }}>SI Submission Tracking</span>
-          </div>
-          <div className="grid-card-inner" style={{ gap: '1.5rem' }}>
-            <div>
-              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Logistic Partner (LSP)</span>
-              <p style={{ fontWeight: '700', marginTop: '2px', fontSize: '0.95rem', color: 'var(--brand-dark)' }}>{record.lsp_name || '—'}</p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>SI Submission Deadline</span>
-              <div style={{ marginTop: '2px' }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Send size={12} color="var(--text-secondary)" /> 
-                  <b>Submit:</b> {record.si_deadline_submit ? new Date(record.si_deadline_submit).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
-                  {record.si_deadline_submit && (
-                    <span className={`si-badge ${getSIPriorityClass(calculateSIPriority(record.si_deadline_submit))}`}>
-                      {getSIPriorityLabel(calculateSIPriority(record.si_deadline_submit))}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                  <ClipboardCheck size={12} color="var(--text-secondary)" /> 
-                  <b>Confirm:</b> {record.si_deadline_confirm ? new Date(record.si_deadline_confirm).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
-                  {record.si_deadline_confirm && (
-                    <span className={`si-badge ${getSIPriorityClass(calculateSIPriority(record.si_deadline_confirm))}`}>
-                      {getSIPriorityLabel(calculateSIPriority(record.si_deadline_confirm))}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+      <div style={{ marginBottom: '2rem', padding: '1.2rem', background: '#fff', borderRadius: '14px', border: '1px solid rgba(0,71,55,0.1)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div>
+           <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>SC Status</span>
+           <div style={{ marginTop: '6px' }}>
+             <span className={`badge ${record.sc_status === 'COMPLETED' ? 'badge-success' : record.sc_status === 'ON_PROGRESS' ? 'badge-medium' : 'badge-normal'}`}>
+               {record.sc_status ? record.sc_status.replace('_', ' ').toUpperCase() : 'PENDING'}
+             </span>
+           </div>
         </div>
-      )}
-
-      {(record.po_date || record.sc_deadline) && (
-        <div style={{ marginBottom: '2rem', padding: '1.2rem', background: '#f8faf9', borderRadius: '14px', border: '1px solid rgba(0,71,55,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <FileSpreadsheet size={16} color="var(--brand-green)" />
-            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--brand-dark)', textTransform: 'uppercase' }}>Contract & PO Tracking</span>
-          </div>
-          <div className="grid-card-inner" style={{ gap: '1.5rem' }}>
-            <div>
-              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>PO Date (Received)</span>
-              <p style={{ fontWeight: '700', marginTop: '2px', fontSize: '0.95rem', color: 'var(--brand-dark)' }}>{record.po_date ? new Date(record.po_date).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '—'}</p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>SC Deadline</span>
-              <div style={{ marginTop: '2px' }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <b>Target:</b> {record.sc_deadline ? new Date(record.sc_deadline).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '—'}
-                  {record.sc_deadline && (
-                    <span className={`si-badge ${getSIPriorityClass(calculateSIPriority(record.sc_deadline))}`}>
-                      {getSIPriorityLabel(calculateSIPriority(record.sc_deadline))}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+        <div>
+           <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>SI Status</span>
+           <div style={{ marginTop: '6px' }}>
+             <span className={`badge ${record.si_status === 'COMPLETED' ? 'badge-success' : record.si_status === 'ON_PROGRESS' ? 'badge-medium' : 'badge-normal'}`}>
+               {record.si_status ? record.si_status.replace('_', ' ').toUpperCase() : 'PENDING'}
+             </span>
+           </div>
         </div>
-      )}
+      </div>
 
       <div style={{ display: 'flex', gap: '12px' }}>
         <button className="btn-secondary" style={{ flex: 1, padding: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => openLogs(record)}>
@@ -380,11 +333,6 @@ const RecordsList = ({ status }) => {
         equipment_type: editData.equipmentType,
         dangerous_type: editData.dangerousType,
         manual_priority: editData.manualPriority || null,
-        lsp_id: editData.lsp_id || null,
-        si_deadline_submit: editData.si_deadline_submit || null,
-        si_deadline_confirm: editData.si_deadline_confirm || null,
-        po_date: editData.po_date || null,
-        sc_deadline: editData.sc_deadline || null,
         comment: editMeta.comment,
       });
       setEditingRecord(null);
@@ -681,65 +629,6 @@ const RecordsList = ({ status }) => {
                 </select>
               </div>
               
-              <div style={{ gridColumn: '1/-1', borderTop: '2px solid #f0f4f3', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-                  <Truck size={18} color="var(--brand-green)" />
-                  <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Shipping Instructions (SI) Details</h3>
-                </div>
-                <label style={labelStyle}>Logistics Partner (LSP)</label>
-                <select value={editData.lsp_id || ''} onChange={e => setEditData({...editData, lsp_id: e.target.value})} style={inputStyle}>
-                  <option value="">Select Logistic Partner...</option>
-                  {lsps.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>SI Deadline: To Submit</label>
-                <input 
-                  type="datetime-local" 
-                  value={editData.si_deadline_submit || ''} 
-                  onChange={e => setEditData({...editData, si_deadline_submit: e.target.value})} 
-                  style={inputStyle} 
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>SI Deadline: To Confirm</label>
-                <input 
-                  type="datetime-local" 
-                  value={editData.si_deadline_confirm || ''} 
-                  onChange={e => setEditData({...editData, si_deadline_confirm: e.target.value})} 
-                  style={inputStyle} 
-                />
-              </div>
-
-              <div style={{ gridColumn: '1/-1', borderTop: '2px solid #f0f4f3', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-                  <FileSpreadsheet size={18} color="var(--brand-green)" />
-                  <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Contract & PO Details</h3>
-                </div>
-              </div>
-
-              <div>
-                <label style={labelStyle}>PO Date (Received)</label>
-                <input 
-                  type="date" 
-                  value={editData.po_date || ''} 
-                  onChange={e => setEditData({...editData, po_date: e.target.value})} 
-                  style={inputStyle} 
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>SC Deadline</label>
-                <input 
-                  type="date" 
-                  value={editData.sc_deadline || ''} 
-                  onChange={e => setEditData({...editData, sc_deadline: e.target.value})} 
-                  style={inputStyle} 
-                />
-              </div>
-
               <div style={{ gridColumn: '1/-1', borderTop: '2px solid #f0f4f3', paddingTop: '1.5rem' }}>
                 <label style={{ ...labelStyle, color: 'var(--brand-dark)' }}>Reason for Modification (Mandatory) *</label>
                 <textarea

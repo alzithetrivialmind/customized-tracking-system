@@ -10,7 +10,8 @@ import {
 const DashboardHome = ({ setActiveTab }) => {
   const { user, isAdmin } = useAuth();
   const [stats, setStats] = useState({ 
-    ongoing: 0, done: 0, high: 0, medium: 0, normal: 0, today: 0, upcoming: [] 
+    ongoing: 0, done: 0, high: 0, medium: 0, normal: 0, today: 0, upcoming: [],
+    sc_pending: 0, si_pending: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +44,8 @@ const DashboardHome = ({ setActiveTab }) => {
         normal: nrm.length,
         today: todayDeliveries.length,
         upcoming,
+        sc_pending: ongoing.filter(r => r.sc_status !== 'COMPLETED').length,
+        si_pending: ongoing.filter(r => r.si_status !== 'COMPLETED').length,
       });
     } catch (err) {
       console.error('Stats fetch error:', err);
@@ -76,10 +79,10 @@ const DashboardHome = ({ setActiveTab }) => {
       </header>
 
       <div className="grid-responsive-cards" style={{ marginBottom: '2.5rem' }}>
-        <StatCard title="Ongoing SO" value={stats.ongoing} icon={<Clock size={24} color="var(--brand-dark)" />} color="var(--brand-green)" onClick={() => setActiveTab('records')} />
-        <StatCard title="Need to Aware" value={stats.today} icon={<TrendingUp size={24} color="#ef6c00" />} color="#ffb74d" onClick={() => setActiveTab('records')} />
-        <StatCard title="High Priority" value={stats.high} icon={<AlertCircle size={24} color="#c62828" />} color="var(--error)" onClick={() => setActiveTab('records')} />
-        <StatCard title="Completed" value={stats.done} icon={<CheckCircle size={24} color="#2e7d32" />} color="var(--success)" onClick={() => setActiveTab('completed')} />
+        <StatCard title="Ongoing Shipments" value={stats.ongoing} icon={<Clock size={24} color="var(--brand-dark)" />} color="var(--brand-green)" onClick={() => setActiveTab('records')} />
+        <StatCard title="Active SC (Pending/Prog)" value={stats.sc_pending} icon={<LayoutDashboard size={24} color="#00796b" />} color="#00796b" onClick={() => setActiveTab('sc-tracking')} />
+        <StatCard title="Active SI (Pending/Prog)" value={stats.si_pending} icon={<Truck size={24} color="#1565c0" />} color="#1565c0" onClick={() => setActiveTab('si-tracking')} />
+        <StatCard title="Need to Aware (ETD)" value={stats.today} icon={<TrendingUp size={24} color="#ef6c00" />} color="#ffb74d" onClick={() => setActiveTab('records')} />
       </div>
 
       <div className="grid-dashboard-main">
