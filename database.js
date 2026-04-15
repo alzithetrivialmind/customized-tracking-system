@@ -273,6 +273,8 @@ const migrateDb = () => {
   addColumn('so_records', 'lsp_id', 'TEXT DEFAULT NULL');
   addColumn('so_records', 'si_deadline_submit', 'DATETIME DEFAULT NULL');
   addColumn('so_records', 'si_deadline_confirm', 'DATETIME DEFAULT NULL');
+  addColumn('so_records', 'po_date', 'DATE DEFAULT NULL');
+  addColumn('so_records', 'sc_deadline', 'DATE DEFAULT NULL');
 
   // profiles: user preferences
   addColumn('profiles', 'so_sort_preference', 'TEXT DEFAULT NULL');

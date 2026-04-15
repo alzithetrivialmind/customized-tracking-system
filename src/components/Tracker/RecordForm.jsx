@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { X, Calendar, Save, UserPlus, Loader2, FileSpreadsheet, CheckCircle, AlertCircle, StickyNote, Truck, Send, ClipboardCheck } from 'lucide-react';
@@ -23,6 +24,8 @@ const RecordForm = ({ onClose }) => {
     lsp_id: '',
     si_deadline_submit: '',
     si_deadline_confirm: '',
+    po_date: '',
+    sc_deadline: '',
   });
 
   // Auto-selected template config based on equipment + cargo selection
@@ -120,6 +123,21 @@ const RecordForm = ({ onClose }) => {
 
   const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
 
+  // Handle PO Date change to auto-calculate SC Deadline
+  useEffect(() => {
+    if (formData.po_date) {
+      let deadline = dayjs(formData.po_date);
+      let added = 0;
+      while (added < 4) {
+        deadline = deadline.add(1, 'day');
+        if (deadline.day() !== 0 && deadline.day() !== 6) {
+          added++;
+        }
+      }
+      setFormData(f => ({ ...f, sc_deadline: deadline.format('YYYY-MM-DD') }));
+    }
+  }, [formData.po_date]);
+
   // Find what template would be used if user overrides
   const effectiveTemplate = templateOverride
     ? templateConfigs.find(t => t.id === templateOverride)
@@ -191,6 +209,23 @@ const RecordForm = ({ onClose }) => {
             <select value={formData.dangerous_type} onChange={set('dangerous_type')} style={inputStyle}>
               {cargoCategories.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
             </select>
+          </div>
+
+          <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+              <FileSpreadsheet size={18} color="var(--brand-green)" />
+              <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Contract & PO Tracking</h3>
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>PO Date (Received)</label>
+            <input type="date" value={formData.po_date} onChange={set('po_date')} style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>SC Deadline (+4 Business Days)</label>
+            <input type="date" value={formData.sc_deadline} onChange={set('sc_deadline')} style={inputStyle} />
           </div>
 
           {/* LSP Selection */}

@@ -126,6 +126,34 @@ const SortableRecord = ({ record, status, handleExport, isExporting, openLogs, h
         </div>
       )}
 
+      {(record.po_date || record.sc_deadline) && (
+        <div style={{ marginBottom: '2rem', padding: '1.2rem', background: '#f8faf9', borderRadius: '14px', border: '1px solid rgba(0,71,55,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <FileSpreadsheet size={16} color="var(--brand-green)" />
+            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--brand-dark)', textTransform: 'uppercase' }}>Contract & PO Tracking</span>
+          </div>
+          <div className="grid-card-inner" style={{ gap: '1.5rem' }}>
+            <div>
+              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>PO Date (Received)</span>
+              <p style={{ fontWeight: '700', marginTop: '2px', fontSize: '0.95rem', color: 'var(--brand-dark)' }}>{record.po_date ? new Date(record.po_date).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '—'}</p>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>SC Deadline</span>
+              <div style={{ marginTop: '2px' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--brand-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <b>Target:</b> {record.sc_deadline ? new Date(record.sc_deadline).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '—'}
+                  {record.sc_deadline && (
+                    <span className={`si-badge ${getSIPriorityClass(calculateSIPriority(record.sc_deadline))}`}>
+                      {getSIPriorityLabel(calculateSIPriority(record.sc_deadline))}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '12px' }}>
         <button className="btn-secondary" style={{ flex: 1, padding: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => openLogs(record)}>
           <History size={18} /> Logs
@@ -277,6 +305,8 @@ const RecordsList = ({ status }) => {
       lsp_id: record.lsp_id || '',
       si_deadline_submit: record.si_deadline_submit || '',
       si_deadline_confirm: record.si_deadline_confirm || '',
+      po_date: record.po_date || '',
+      sc_deadline: record.sc_deadline || '',
     });
     setEditMeta({ comment: '', attachment: null });
   };
@@ -298,6 +328,8 @@ const RecordsList = ({ status }) => {
         lsp_id: editData.lsp_id || null,
         si_deadline_submit: editData.si_deadline_submit || null,
         si_deadline_confirm: editData.si_deadline_confirm || null,
+        po_date: editData.po_date || null,
+        sc_deadline: editData.sc_deadline || null,
         comment: editMeta.comment,
       });
       setEditingRecord(null);
@@ -560,6 +592,33 @@ const RecordsList = ({ status }) => {
                   type="datetime-local" 
                   value={editData.si_deadline_confirm || ''} 
                   onChange={e => setEditData({...editData, si_deadline_confirm: e.target.value})} 
+                  style={inputStyle} 
+                />
+              </div>
+
+              <div style={{ gridColumn: '1/-1', borderTop: '2px solid #f0f4f3', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+                  <FileSpreadsheet size={18} color="var(--brand-green)" />
+                  <h3 style={{ fontSize: '1.1rem', color: 'var(--brand-dark)', margin: 0 }}>Contract & PO Details</h3>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>PO Date (Received)</label>
+                <input 
+                  type="date" 
+                  value={editData.po_date || ''} 
+                  onChange={e => setEditData({...editData, po_date: e.target.value})} 
+                  style={inputStyle} 
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>SC Deadline</label>
+                <input 
+                  type="date" 
+                  value={editData.sc_deadline || ''} 
+                  onChange={e => setEditData({...editData, sc_deadline: e.target.value})} 
                   style={inputStyle} 
                 />
               </div>
